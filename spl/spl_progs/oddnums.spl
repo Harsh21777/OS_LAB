@@ -3,6 +3,7 @@ alias count R0;
 count=0;
 while(count<=20) do
     if(count%2!=0) then
+        breakpoint;
         print count;
     endif;
     count = count + 1;
