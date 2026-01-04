@@ -1,3 +1,7 @@
+//load INT7 from disk to mem
+loadi(16,29);
+loadi(17,30);
+
 //loading timer interrupt routine 
 loadi(4,17);
 loadi(5,18);
@@ -52,14 +56,17 @@ PTLR = 10;
 [PTBR+18] = 77;
 [PTBR+19] = "0110";	
 
+[76*512] = [65*512+1];	// IP to 2nd word in header when loaded from code which is in EXEC format
+SP = 8*512;
+
 //process table entry for page table
 [PROCESS_TABLE + 11] = 80;
 //setting PID for 1st process 
 [PROCESS_TABLE+1]=0;
 //setting current going PID in status table
+
 [SYSTEM_STATUS_TABLE +1]=0;
 
-[76*512] = [65*512+1];	// IP to 2nd word in header when loaded from code which is in EXEC format
-SP = 8*512;
+
 
 ireturn;

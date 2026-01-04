@@ -1,0 +1,46 @@
+//setting MODE flage to systemcall no. 5 which is for write
+[PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1] * 16 + 9] = 5;
+alias userSP R0;
+userSP=SP;
+
+//saving user SP in UPTR
+[PROCESS_TABLE + ( [SYSTEM_STATUS_TABLE + 1] * 16) + 13] = userSP;
+
+//assigning SP to kernel SP
+SP = ([PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 1] * 16) + 11] * 512) - 1;
+
+alias physicalPageNum R1;
+alias offset R2;
+alias fileDescPhysicalAddr R3;
+physicalPageNum = [PTBR + 2*((userSP-4)/512)] ;
+offset = (userSP-4)%512;
+fileDescPhysicalAddr = (physicalPageNum*512) + offset;
+alias fileDescripter R4;
+fileDescripter = [fileDescPhysicalAddr]; 
+
+if(fileDescripter != -2) then
+    //getting physical addr if ret val and returning -1 for success
+    alias physicalAddrRetVal R5;
+    physicalAddrRetVal = ([PTBR + 2*((userSP-1)/512)]*512) + ((userSP-1)%512);
+    [physicalAddrRetVal]=-1;
+else 
+    //getting pysical addr of arg2 and printing it
+    alias printWord R5;
+    printWord = [([PTBR + 2*((userSP-3)/512)]*512) + ((userSP-3)%512)];
+    print printWord;
+    //getting physical addr if ret val and returning 0 for success
+    alias physicalAddrRetVal R6;
+    physicalAddrRetVal = ([PTBR + 2*((userSP-1)/512)]*512) + ((userSP-1)%512);
+    [physicalAddrRetVal]=0;
+endif;
+
+SP = userSP;
+
+//resetting MODE flage to 0
+[PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1] * 16 + 9] = 0;
+
+ireturn;
+
+
+
+
