@@ -1,17 +1,49 @@
+breakpoint;
+
 //setting UPTR of current process in process table of current process
 [PROCESS_TABLE + ( [SYSTEM_STATUS_TABLE + 1] * 16) + 13] = SP;
 
 // Setting SP to UArea Page number * 512 - 1
 SP = [PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 1] * 16) + 11] * 512 - 1;
-
 //saving user context to kernel stack
 backup;
 
-print [SYSTEM_STATUS_TABLE +1];
-print "TIMER";
+alias currentPID R0;
+currentPID=[SYSTEM_STATUS_TABLE +1];
 
+alias process_table_entry R1;
+process_table_entry=PROCESS_TABLE+currentPID*16;
+[process_table_entry+4]=READY;
+[process_table_entry+12]=SP%512;
+[process_table_entry+14]=PTBR;
+[process_table_entry+15]=PTLR;
+
+alias newPID R2;
+if(currentPID==1) then
+    newPID=0;
+else
+    newPID=1;
+endif;
+
+alias new_processs_table_entry R3;
+new_processs_table_entry = PROCESS_TABLE+newPID*16;
+SP=[new_processs_table_entry+11]*512+[new_processs_table_entry+12];//userAreaPage*512+offset(KPTR)
+PTBR=[new_processs_table_entry+14];
+PTLR=[new_processs_table_entry+15];
+
+[SYSTEM_STATUS_TABLE+1]=newPID;
+//if process was in CREATED state before so nothing to restore
+if([new_processs_table_entry+4]==CREATED) then 
+    [new_processs_table_entry+4]=RUNNING;
+    SP=[new_processs_table_entry+13];
+    ireturn;
+endif;
+
+[new_processs_table_entry+4]=RUNNING;
 //restore from kernel stack to user stack and resetting SP to top of User stack
 restore;
-SP = [PROCESS_TABLE + ( [SYSTEM_STATUS_TABLE + 1] * 16) + 13];
+[PROCESS_TABLE + 16 * [SYSTEM_STATUS_TABLE + 1] + 12] = 0;
+SP = [PROCESS_TABLE + 16 * [SYSTEM_STATUS_TABLE + 1] + 13];
 
+breakpoint;
 ireturn;
