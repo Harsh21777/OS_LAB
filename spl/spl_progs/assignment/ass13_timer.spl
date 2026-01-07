@@ -1,0 +1,53 @@
+breakpoint;
+
+//setting UPTR of current process in process table of current process
+[PROCESS_TABLE + ( [SYSTEM_STATUS_TABLE + 1] * 16) + 13] = SP;
+
+// Setting SP to UArea Page number * 512 - 1
+SP = [PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 1] * 16) + 11] * 512 - 1;
+//saving user context to kernel stack
+backup;
+
+alias currentPID R0;
+currentPID=[SYSTEM_STATUS_TABLE +1];
+
+alias process_table_entry R1;
+process_table_entry=PROCESS_TABLE+currentPID*16;
+[process_table_entry+4]=READY;
+[process_table_entry+12]=SP%512;
+[process_table_entry+14]=PTBR;
+[process_table_entry+15]=PTLR;
+
+alias tempPID R2;
+alias newPID R4;
+tempPID=(currentPID+1)%3;
+while(tempPID!=currentPID) do
+    if([PROCESS_TABLE+(tempPID*16)+4]==CREATED ||[PROCESS_TABLE+(tempPID*16)+4]==READY) then
+        newPID=tempPID;
+        break;
+    endif;
+    tempPID=(tempPID+1)%3;
+endwhile;
+
+alias new_processs_table_entry R3;
+new_processs_table_entry = PROCESS_TABLE+newPID*16;
+SP=[new_processs_table_entry+11]*512+[new_processs_table_entry+12];//userAreaPage*512+offset(KPTR)
+PTBR=[new_processs_table_entry+14];
+PTLR=[new_processs_table_entry+15];
+
+[SYSTEM_STATUS_TABLE+1]=newPID;
+//if process was in CREATED state before so nothing to restore
+if([new_processs_table_entry+4]==CREATED) then 
+    [new_processs_table_entry+4]=RUNNING;
+    SP=[new_processs_table_entry+13];
+    ireturn;
+endif;
+
+[new_processs_table_entry+4]=RUNNING;
+//restore from kernel stack to user stack and resetting SP to top of User stack
+restore;
+[PROCESS_TABLE + 16 * [SYSTEM_STATUS_TABLE + 1] + 12] = 0;
+SP = [PROCESS_TABLE + 16 * [SYSTEM_STATUS_TABLE + 1] + 13];
+
+breakpoint;
+ireturn;

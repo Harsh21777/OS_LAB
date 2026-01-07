@@ -1,4 +1,5 @@
 load --os /home/expos/myexpos/spl/spl_progs/os_startup.xsm
+load --module 7 /home/expos/myexpos/spl/spl_progs/boot_module.xsm
 load --library /home/expos/myexpos/expl/library.lib
 load --init /home/expos/myexpos/expl/samples/ass12_q1_init.xsm
 load --idle /home/expos/myexpos/expl/samples/ass12_q1_idle.xsm
