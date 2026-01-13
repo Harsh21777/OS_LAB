@@ -1,0 +1,27 @@
+int main(){
+    decl
+        int a,iter,check,temp;
+    enddecl
+
+    begin
+        a=2;
+        while(a<=100) do
+            check=1;
+            iter=2;
+            while(iter<(a/2)) do
+                if((a%iter)==0) then
+                    check=0;
+                    break;
+                endif;
+                iter=iter+1;
+            endwhile;
+            if(check==1) then
+                temp=exposcall("Write",-2,a);
+            endif;
+            a=a+1;    
+        endwhile;
+
+        return 0;
+    end
+}
+

@@ -1,4 +1,4 @@
-//load module 7 from disk
+//load module 7 (boot module)from disk
 loadi(54,67);
 loadi(55,68);
 

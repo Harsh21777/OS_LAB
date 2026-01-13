@@ -1,0 +1,56 @@
+//Obtain the PID of the current process from the System Status Table.
+alias currentPID R1;
+currentPID=[SYSTEM_STATUS_TABLE +1];
+
+//Push the BP of the current process on top of the kernel stack
+multipush(BP);
+
+//Obtain the Process Table entry corresponding to the current PID.
+alias process_table_entry R2;
+process_table_entry=PROCESS_TABLE+currentPID*16;
+[process_table_entry+12]=SP%512;
+[process_table_entry+14]=PTBR;
+[process_table_entry+15]=PTLR;
+
+
+alias tempPID R3;
+alias newPID R4;
+newPID=0;
+tempPID=currentPID+1;
+while(tempPID<16) do
+    if([PROCESS_TABLE+(tempPID*16)+4]==CREATED ||[PROCESS_TABLE+(tempPID*16)+4]==READY) then
+        newPID=tempPID;
+        break;
+    endif;
+    if(tempPID==15) then 
+        tempPID=1;
+    else 
+        tempPID=tempPID+1;
+    endif;
+endwhile;
+
+alias new_processs_table_entry R5;
+new_processs_table_entry = PROCESS_TABLE+newPID*16;
+SP=[new_processs_table_entry+11]*512+[new_processs_table_entry+12];//userAreaPage*512+offset(KPTR)
+PTBR=[new_processs_table_entry+14];
+PTLR=[new_processs_table_entry+15];
+
+[SYSTEM_STATUS_TABLE+1]=newPID;
+
+//if process was in CREATED state before so nothing to restore
+if([new_processs_table_entry+4]==CREATED) then 
+    [new_processs_table_entry+4]=RUNNING;
+    SP=[new_processs_table_entry+13];
+    [new_processs_table_entry+9]=0;
+    ireturn;
+endif;
+
+[new_processs_table_entry+4]=RUNNING;
+
+multipop(BP);
+
+return;
+
+
+
+
