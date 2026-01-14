@@ -16,17 +16,21 @@ process_table_entry=PROCESS_TABLE+currentPID*16;
 alias tempPID R3;
 alias newPID R4;
 newPID=0;
-tempPID=currentPID+1;
-while(tempPID<16) do
+tempPID=(currentPID+1)%16;
+while(tempPID!=currentPID) do
+
+    if (tempPID == 0) then
+        tempPID = (tempPID + 1) % 16;
+        continue;
+    endif;
+    
     if([PROCESS_TABLE+(tempPID*16)+4]==CREATED ||[PROCESS_TABLE+(tempPID*16)+4]==READY) then
         newPID=tempPID;
         break;
     endif;
-    if(tempPID==15) then 
-        tempPID=1;
-    else 
-        tempPID=tempPID+1;
-    endif;
+     
+    tempPID=(tempPID+1)%16;
+    
 endwhile;
 
 alias new_processs_table_entry R5;

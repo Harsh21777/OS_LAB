@@ -9,3 +9,7 @@ load --int=10 /home/expos/myexpos/spl/spl_progs/int_10.xsm
 load --exhandler /home/expos/myexpos/spl/spl_progs/haltProg.xsm
 load --int=timer /home/expos/myexpos/spl/spl_progs/sample_timer.xsm
 load --int=7 /home/expos/myexpos/spl/spl_progs/sample_int7.xsm
+load --module 0 /home/expos/myexpos/spl/spl_progs/resourceManager_module0.xsm
+load --module 4 /home/expos/myexpos/spl/spl_progs/deviceManager_module4.xsm
+
+

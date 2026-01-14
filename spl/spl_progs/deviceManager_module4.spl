@@ -1,0 +1,31 @@
+alias funcNum R1;
+alias currentPID R2;
+alias word R3;
+
+if(funcNum==3) then 
+    //AQUIRE TERMINAL
+
+    //Push all the registers used till now in this module
+    multipush(R1,R2,R3);
+    //Store the function number 8 in register R1 and PID in R2
+    funcNum=8;
+    currentPID=[SYSTEM_STATUS_TABLE+1];
+
+    call MOD_0;
+
+    multipop(R1,R2,R3);
+
+    print word;
+
+    //RELEASE TERMINAL
+    multipush(R1,R2,R3);
+    funcNum=9;
+    currentPID=[SYSTEM_STATUS_TABLE+1];
+
+    call MOD_0;
+
+    multipop(R1,R2,R3);
+
+endif;
+
+return;

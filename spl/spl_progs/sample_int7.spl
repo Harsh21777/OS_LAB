@@ -27,7 +27,24 @@ else
     //getting pysical addr of arg2 and printing it
     alias printWord R5;
     printWord = [([PTBR + 2*((userSP-3)/512)]*512) + ((userSP-3)%512)];
-    print printWord;
+
+
+    //accessing terminal to write on it
+    multipush(R0,R1,R2,R3,R4,R5);
+    alias funcNum R1;
+    funcNum=3; //for terminale write
+
+    alias currentPID R2;
+    currentPID=[SYSTEM_STATUS_TABLE+1];
+
+    alias wordPrinted R3;
+    wordPrinted=printWord;
+
+    call MOD_4;
+
+    multipop(R0,R1,R2,R3,R4,R5);
+
+
     //getting physical addr if ret val and returning 0 for success
     alias physicalAddrRetVal R6;
     physicalAddrRetVal = ([PTBR + 2*((userSP-1)/512)]*512) + ((userSP-1)%512);
