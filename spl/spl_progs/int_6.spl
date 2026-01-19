@@ -1,0 +1,75 @@
+
+//saving MODE flag
+[PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+9]=7;
+
+alias userSP R0;
+userSP=SP;
+
+[PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+13]=SP;
+
+SP=[PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+11]*512-1;
+
+alias fileDesc R1;
+alias offset R2;
+alias pageNum R3;
+alias fileDescAddr R4;
+alias pageTable R5;
+
+pageTable=PAGE_TABLE_BASE+20*[SYSTEM_STATUS_TABLE+1];
+
+pageNum=[pageTable + 2*((userSP-4)/512)] ;
+offset=(userSP-4)%512;
+fileDescAddr=pageNum*512+offset;
+fileDesc=[fileDescAddr];
+
+if(fileDesc!=-1) then
+    alias retAddr R4;
+    alias returnVal R1;
+    pageNum=[pageTable + 2*((userSP-1)/512)] ;
+    offset=(userSP-1)%512;
+    retAddr=pageNum*512+offset;
+    returnVal=[retAddr];
+    returnVal=-1;
+else
+    alias wordAddr R4;
+    alias wordPutAddr R6;
+    pageNum=[pageTable + 2*((userSP-3)/512)] ;
+    offset=(userSP-3)%512;
+    wordAddr=pageNum*512+offset;
+    wordPutAddr=[wordAddr];
+
+    multipush(R0,R1,R2,R3,R4,R5);
+
+    alias funcNum R1;
+    alias currentPID R2;
+    alias wordPutAddrCopy R3;
+
+    funcNum=4;
+    currentPID=[SYSTEM_STATUS_TABLE+1];
+    wordPutAddrCopy=wordPutAddr;
+
+    call MOD_4;
+
+    multipop(R0,R1,R2,R3,R4,R5);
+
+    alias retAddr R4;
+    alias returnVal R1;
+    pageNum=[pageTable+ 2*((userSP-1)/512)] ;
+    offset=(userSP-1)%512;
+    retAddr=pageNum*512+offset;
+    returnVal=[retAddr];
+    returnVal=0;
+
+endif;
+
+[PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+9]=0;
+
+SP=userSP;
+
+ireturn;
+
+
+
+
+
+

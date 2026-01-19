@@ -1,4 +1,3 @@
-BRKP
 MOV R16, 8
 EQ R16, R1
 JZ R16, _L1
@@ -29,7 +28,6 @@ RET
 JMP _L2
 _L1:
 _L2:
-BRKP
 MOV R16, 9
 EQ R16, R1
 JZ R16, _L5

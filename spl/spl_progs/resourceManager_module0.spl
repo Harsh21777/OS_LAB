@@ -2,7 +2,6 @@ alias retVal R0;
 alias funcNum R1;
 alias currentPID R2;
 
-breakpoint;
 if(funcNum==8) then 
 
     while([TERMINAL_STATUS_TABLE]!=0) do
@@ -21,7 +20,6 @@ if(funcNum==8) then
     return;
 endif;
 
-breakpoint;
 if(funcNum==9) then 
     if(currentPID!=[TERMINAL_STATUS_TABLE+1]) then
         retVal=-1;

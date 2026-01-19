@@ -1,8 +1,8 @@
 alias funcNum R1;
 alias currentPID R2;
-alias word R3;
 
 if(funcNum==3) then 
+    alias word R3;
     //AQUIRE TERMINAL
 
     //Push all the registers used till now in this module
@@ -25,6 +25,43 @@ if(funcNum==3) then
     call MOD_0;
 
     multipop(R1,R2,R3);
+
+endif;
+
+if(funcNum==4) then
+    alias wordPutAddr R3;
+    //AQUIRE TERMINAL
+
+    //Push all the registers used till now in this module
+    multipush(R1,R2,R3);
+    //Store the function number 8 in register R1 and PID in R2
+    funcNum=8;
+    currentPID=[SYSTEM_STATUS_TABLE+1];
+
+    call MOD_0;
+
+    multipop(R1,R2,R3);
+
+    read;
+
+    [PROCESS_TABLE+currentPID*16+4]=WAIT_TERMINAL;
+
+    //INVOKE Context Switch
+    multipush(R1,R2,R3);
+
+    call MOD_5;
+
+    multipop(R1,R2,R3); 
+
+    alias offset R4;
+    alias pageNum R5;
+    alias physicalAddr R6;
+    pageNum=[PTBR + 2*(wordPutAddr/512)];
+    offset=wordPutAddr%512;
+    physicalAddr=pageNum*512+offset;
+    //Store the value present in input buffer field of process table to physicalAddr
+    [physicalAddr]=[PROCESS_TABLE+currentPID*16+8];
+
 
 endif;
 

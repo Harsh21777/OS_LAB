@@ -1,0 +1,55 @@
+decl
+    int arr[100];
+    int bubble(int n);
+enddecl
+
+int bubble(int n){
+    decl
+        int i,j,temp;
+    enddecl
+    begin
+        i=0;
+        while(i<(n-1)) do
+            j=0;
+            while(j<(n-i-1)) do
+                if(arr[j]>arr[j+1]) then
+                    temp=arr[j];
+                    arr[j]=arr[j+1];
+                    arr[j+1]=temp;
+                endif;
+                j=j+1;
+            endwhile;
+            i=i+1;
+        endwhile;
+
+        i=0;
+        while(i<n) do
+            temp=exposcall("Write",-2,arr[i]);
+            i=i+1;
+        endwhile;
+
+        return 0;
+
+    end
+}
+
+int main(){
+    decl 
+        int i,n,temp,in;
+    enddecl
+
+    begin
+        temp=exposcall("Read",-1,n);
+        i=0;
+        while(i<n) do
+            temp=exposcall("Read",-1,in);
+            arr[i]=in;
+            i=i+1;
+        endwhile;
+
+        temp=bubble(n);
+
+        return 0;
+
+    end
+}
