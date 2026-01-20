@@ -1,3 +1,22 @@
+//disk free list 
+loadi(61,2);
+
+//load int9
+loadi(20,33);
+loadi(21,34);
+
+//load module 1 (process manager)
+loadi(42,55);
+loadi(43,56);
+
+//load module 2 (memory manager)
+loadi(44,57);
+loadi(45,58);
+
+//load inode table
+loadi(59,3);
+loadi(60,4);
+
 //load console interrupt
 loadi(8,21);
 loadi(9,22);
@@ -95,14 +114,39 @@ PTLR = 10;
 [PROCESS_TABLE +1*16+ 14] = PAGE_TABLE_BASE+20;
 [PROCESS_TABLE +1*16+ 15] = 10;
 
-alias iterPID R0;
-iterPID=2;
-while(iterPID<16) do
-    [PROCESS_TABLE+iterPID*16+4]=TERMINATED;
-    iterPID=iterPID+1;
+alias iter R0;
+iter=2;
+while(iter<16) do
+    [PROCESS_TABLE+iter*16+4]=TERMINATED;
+    iter=iter+1;
 endwhile;
 
-//nitialize the STATUS field in the Terminal Status table as 0.
+//initialize the STATUS field in the Terminal Status table as 0.
 [TERMINAL_STATUS_TABLE]=0;
+
+iter=0;
+while(iter<=75) do
+    [MEMORY_FREE_LIST+iter]=1;
+    iter=iter+1;
+endwhile;
+
+while(iter<=127) do
+    [MEMORY_FREE_LIST+iter]=0;
+    iter=iter+1;
+endwhile;
+
+//setting bit for initally alloacated pages
+iter=76;
+while(iter<=82) do
+    [MEMORY_FREE_LIST+iter]=1;
+    iter=iter+1;
+endwhile;
+
+
+
+//initialize the fields WAIT_MEM_COUNT to 0 and MEM_FREE_COUNT to number of free pages
+[SYSTEM_STATUS_TABLE+3]=0;
+[SYSTEM_STATUS_TABLE+2]=45;
+
 
 return;

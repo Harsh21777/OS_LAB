@@ -1,0 +1,57 @@
+alias funcNum R1;
+
+if(funcNum==1) then
+    //Increment WAIT_MEM_COUNT field
+    [SYSTEM_STATUS_TABLE+3]=[SYSTEM_STATUS_TABLE+3]+1;
+
+    while([SYSTEM_STATUS_TABLE+2]==0) do
+        [PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+4]=WAIT_MEM;
+        multipush(R1);
+        call MOD_5;
+        multipop(R1);
+    endwhile;
+
+    //Decrement WAIT_MEM_COUNT field & MEM_FREE_COUNT
+    [SYSTEM_STATUS_TABLE+3]=[SYSTEM_STATUS_TABLE+3]-1;
+    [SYSTEM_STATUS_TABLE+2]=[SYSTEM_STATUS_TABLE+2]-1;
+
+    alias iter R2;
+    iter=76;
+    while(iter<MAX_MEM_PAGE) do
+        if([MEMORY_FREE_LIST+iter]==0) then  
+            break;
+        endif;
+        iter=iter+1;
+    endwhile;
+
+    if(iter==MAX_MEM_PAGE) then
+        R0=-1;
+        return;
+    endif;
+
+    [MEMORY_FREE_LIST+iter]=1;
+    R0=iter;
+
+    breakpoint;
+    return;
+endif;
+
+if(funcNum==2) then
+    alias pageNum R2;
+    //Decrement the corresponding entry in the memory free list and increment the MEM_FREE_COUNT 
+    [MEMORY_FREE_LIST+pageNum]=[MEMORY_FREE_LIST+pageNum]-1;
+    [SYSTEM_STATUS_TABLE+2]=[SYSTEM_STATUS_TABLE+2]+1;
+
+    alias iter R3;
+    iter=1;
+
+    while(iter<16) do
+        if([PROCESS_TABLE+iter*16+4]==WAIT_MEM) then
+            [PROCESS_TABLE+iter*16+4]=READY;
+        endif;
+        iter=iter+1;
+    endwhile;
+
+    breakpoint;
+    return;
+endif;
