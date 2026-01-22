@@ -9,6 +9,7 @@ if(funcNum==2) then
     call MOD_2;
     multipop(R1,R2);
 
+    breakpoint;
     return;
 endif;
 
@@ -24,6 +25,8 @@ if(funcNum==3) then
     call MOD_1;
     multipop(R1,R2);
     [PROCESS_TABLE+pid*16+4]=TERMINATED;
+
+    breakpoint;
     return;
 endif;
 

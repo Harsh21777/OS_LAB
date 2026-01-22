@@ -7,9 +7,7 @@ backup;
 alias currentPID R0;
 currentPID=[TERMINAL_STATUS_TABLE+1];
 
-breakpoint;
 [PROCESS_TABLE+currentPID*16+8]=P0;
-breakpoint;
 
 //RELEASE TERMINAL
 multipush(R0,R1);
@@ -28,6 +26,7 @@ restore;
 
 SP = [PROCESS_TABLE + 16 * [SYSTEM_STATUS_TABLE + 1] + 13];
 
+breakpoint;
 ireturn;
 
 
