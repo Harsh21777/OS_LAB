@@ -1,9 +1,9 @@
+//load disk free list
+load(61,2);
+
 //load disk interrupt
 loadi(6,19);
 loadi(7,20);
-
-//disk free list 
-loadi(61,2);
 
 //load int9
 loadi(20,33);
@@ -125,9 +125,7 @@ while(iter<16) do
     iter=iter+1;
 endwhile;
 
-//initialize the STATUS field in the Terminal Status table as 0.
-[TERMINAL_STATUS_TABLE]=0;
-
+//seting MEMORY_FREE_LIST
 iter=0;
 while(iter<=75) do
     [MEMORY_FREE_LIST+iter]=1;
@@ -146,13 +144,6 @@ while(iter<=82) do
     iter=iter+1;
 endwhile;
 
-//initialize the fields WAIT_MEM_COUNT to 0 and MEM_FREE_COUNT to number of free pages
-[SYSTEM_STATUS_TABLE+3]=0;
-[SYSTEM_STATUS_TABLE+2]=45;
-
-//Initialize the STATUS field in the Disk Status Table
-[DISK_STATUS_TABLE]=0;
-
 // per-process resource table for init
 iter = 1;
 while (iter < 9) do
@@ -160,6 +151,26 @@ while (iter < 9) do
     iter = iter + 1;
 endwhile;
 
+//initialize per-process diskMapTable
+iter=0;
+while(iter<10) do
+    [DISK_MAP_TABLE+1*10+iter]=-1;
+    iter=iter+1;
+endwhile;
+
+[DISK_MAP_TABLE+1*10+4]=7;
+[DISK_MAP_TABLE+1*10+5]=8;
+
+
+//initialize the STATUS field in the Terminal Status table as 0.
+[TERMINAL_STATUS_TABLE]=0;
+
+//Initialize the STATUS field in the Disk Status Table
+[DISK_STATUS_TABLE]=0;
+
+//initialize the fields WAIT_MEM_COUNT to 0 and MEM_FREE_COUNT to number of free pages
+[SYSTEM_STATUS_TABLE+3]=0;
+[SYSTEM_STATUS_TABLE+2]=45;
 
 
 
