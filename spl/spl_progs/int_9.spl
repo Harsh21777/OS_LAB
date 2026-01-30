@@ -171,7 +171,7 @@ SP=8*512;
 //per-process resource table
 userAreaPageNum=[PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+11];
 alias perProcessResourceEntry R8;
-perProcessResourceEntry=userAreaPageNum*512+96;
+perProcessResourceEntry=userAreaPageNum*512+496;
 alias iter R9;
 iter=0;
 
