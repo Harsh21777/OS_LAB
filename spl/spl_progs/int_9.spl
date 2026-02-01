@@ -49,7 +49,7 @@ multipush(R0,R1,R2,R3,R4,R5,R6);
 
 alias funcNum R1;
 alias pid R2;
-funcNum=3;
+funcNum=EXIT_PROCESS;
 pid=[SYSTEM_STATUS_TABLE+1];
 
 call MOD_1;
@@ -85,12 +85,12 @@ multipush(R0,R1,R2,R3,R4,R5,R6,R7);
 
 alias freePageNum R0;
 
-R1=1;
+R1=GET_FREE_PAGE;
 call MOD_2;
 [PTBR+16]=R0;
 [PTBR+17]="0110";
 
-R1=1;
+R1=GET_FREE_PAGE;
 call MOD_2;
 [PTBR+18]=R0;
 [PTBR+19]="0110";
@@ -102,7 +102,7 @@ breakpoint;
 if([INODE_TABLE+inodeIdx*16+8]!=-1) then
     multipush(R0,R1,R2,R3,R4,R5,R6,R7);
     //get code page
-    R1=5;
+    R1=GET_CODE_PAGE;
     R2=[INODE_TABLE+inodeIdx*16+8];
     call MOD_2;
     [PTBR+8]=R0;

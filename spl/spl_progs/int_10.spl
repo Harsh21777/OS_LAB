@@ -13,7 +13,7 @@ alias flg R4;
 iterPID=1;
 flg=0;
 
-while(iterPID<16) do
+while(iterPID<MAX_PROC_NUM) do
     if([PROCESS_TABLE+iterPID*16+4]!=TERMINATED) then 
         flg=1;
         call MOD_5;

@@ -32,7 +32,7 @@ else
     //accessing terminal to write on it
     multipush(R0,R1,R2,R3,R4,R5);
     alias funcNum R1;
-    funcNum=3; //for terminale write
+    funcNum=TERMINAL_WRITE; 
 
     alias currentPID R2;
     currentPID=[SYSTEM_STATUS_TABLE+1];

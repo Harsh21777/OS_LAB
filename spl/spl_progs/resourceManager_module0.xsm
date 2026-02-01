@@ -108,6 +108,4 @@ RET
 JMP _L10
 _L9:
 _L10:
-MOV R0, -1
-RET
 HALT

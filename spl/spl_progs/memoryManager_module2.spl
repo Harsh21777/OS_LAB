@@ -1,7 +1,7 @@
 alias funcNum R1;
 
 //Get Free Page
-if(funcNum==1) then
+if(funcNum==GET_FREE_PAGE) then
     //Increment WAIT_MEM_COUNT field
     [SYSTEM_STATUS_TABLE+3]=[SYSTEM_STATUS_TABLE+3]+1;
 
@@ -38,7 +38,7 @@ if(funcNum==1) then
 endif;
 
 //release Page
-if(funcNum==2) then
+if(funcNum==RELEASE_PAGE) then
     alias pageNum R2;
     //Decrement the corresponding entry in the memory free list and increment the MEM_FREE_COUNT 
     [MEMORY_FREE_LIST+pageNum]=[MEMORY_FREE_LIST+pageNum]-1;
@@ -63,7 +63,7 @@ if(funcNum==2) then
 endif;
 
 //release block
-if(funcNum==4) then
+if(funcNum==RELEASE_BLOCK) then
     alias blkNum R2;
     [DISK_FREE_LIST+blkNum]=[DISK_FREE_LIST+blkNum]-1;
 
@@ -71,7 +71,7 @@ if(funcNum==4) then
 endif;
 
 //Get Code Page
-if (funcNum == 5) then
+if (funcNum == GET_CODE_PAGE) then
     alias blockNumber R2;
     alias i R3;
     alias j R4;
@@ -96,7 +96,7 @@ if (funcNum == 5) then
 
     multipush(R1, R2);
     
-    R1 = 1;
+    R1 = GET_FREE_PAGE;
     call MOD_2;
 
     pageNumber = R0;
@@ -105,7 +105,7 @@ if (funcNum == 5) then
 
     multipush(R1, R2, R5);
 
-    R1 = 2;
+    R1 = DISK_LOAD;
     R4 = blockNumber;
     R2 = [SYSTEM_STATUS_TABLE + 1];
     R3 = pageNumber;

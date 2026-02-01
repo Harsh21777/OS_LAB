@@ -3,7 +3,7 @@ alias funcNum R1;
 alias currentPID R2;
 
 //aquire disk
-if(funcNum==3) then
+if(funcNum==ACQUIRE_DISK) then
     while([DISK_STATUS_TABLE]==1) do
         [PROCESS_TABLE+currentPID*16+4]=WAIT_DISK;
         multipush(R1,R2);
@@ -19,7 +19,7 @@ if(funcNum==3) then
 endif;
 
 //aquire terminal
-if(funcNum==8) then 
+if(funcNum==ACQUIRE_TERMINAL) then 
 
     while([TERMINAL_STATUS_TABLE]!=0) do
         [PROCESS_TABLE+currentPID*16+4]=WAIT_TERMINAL;
@@ -38,8 +38,8 @@ if(funcNum==8) then
     return;
 endif;
 
-release terminal
-if(funcNum==9) then 
+//release terminal
+if(funcNum==RELEASE_TERMINAL) then 
     if(currentPID!=[TERMINAL_STATUS_TABLE+1]) then
         retVal=-1;
         return;
@@ -49,7 +49,7 @@ if(funcNum==9) then
     alias iterPID R5;
     iterPID=0;
 
-    while(iterPID<16) do
+    while(iterPID<MAX_PROC_NUM) do
         if([PROCESS_TABLE+iterPID*16+4]==WAIT_TERMINAL) then
             [PROCESS_TABLE+iterPID*16+4]=READY;
         endif;
@@ -62,8 +62,6 @@ if(funcNum==9) then
     return;
 endif;
 
-retVal=-1;
-return;
 
 
 

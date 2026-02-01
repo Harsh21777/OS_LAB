@@ -44,7 +44,7 @@ else
     alias currentPID R2;
     alias wordPutAddrCopy R3;
 
-    funcNum=4;
+    funcNum=TERMINAL_READ;
     currentPID=[SYSTEM_STATUS_TABLE+1];
     wordPutAddrCopy=wordPutAddr;
 

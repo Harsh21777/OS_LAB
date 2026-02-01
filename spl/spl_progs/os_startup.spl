@@ -46,7 +46,7 @@ PTLR=10;
 
 
 //setting PID for 0st process 
-[PROCESS_TABLE+1]=0;
+[PROCESS_TABLE+1]=IDLE_PROCESS;
 //setinng state
 [PROCESS_TABLE+4]=RUNNING;
 //user Area page for idle process
@@ -62,6 +62,6 @@ PTLR=10;
 
 SP=8*512;
 //setting current going PID in status table
-[SYSTEM_STATUS_TABLE +1]=0;
+[SYSTEM_STATUS_TABLE +1]=IDLE_PROCESS;
 
 ireturn;

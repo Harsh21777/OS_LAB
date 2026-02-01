@@ -29,7 +29,7 @@ if(([PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1] * 16 + 13] == (PTLR * 512 - 1))||
     endif;
 
     multipush(R0);
-    R1 = 3;
+    R1 = EXIT_PROCESS;
     R2 = [SYSTEM_STATUS_TABLE + 1];
     call MOD_1;
 
@@ -44,7 +44,7 @@ else
 
         multipush(R0, R1, R2);
 
-        R1=5;
+        R1=GET_CODE_PAGE;
         R2=codeBlkNum;
         
         call MOD_2;//get code page
@@ -58,12 +58,12 @@ else
     if((EPN>1)&&(EPN<4)) then
         multipush(R0, R1, R2);
 
-        R1=1;
+        R1=GET_FREE_PAGE;
         call MOD_2;
         [PAGE_TABLE_BASE+[SYSTEM_STATUS_TABLE+1]*20+4]=R0;
         [PAGE_TABLE_BASE+[SYSTEM_STATUS_TABLE+1]*20+5]="1110";
 
-        R1=1;
+        R1=GET_FREE_PAGE;
         call MOD_2;
         [PAGE_TABLE_BASE+[SYSTEM_STATUS_TABLE+1]*20+6]=R0;
         [PAGE_TABLE_BASE+[SYSTEM_STATUS_TABLE+1]*20+7]="1110";

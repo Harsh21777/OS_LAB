@@ -120,7 +120,7 @@ PTLR = 10;
 
 alias iter R0;
 iter=2;
-while(iter<16) do
+while(iter<MAX_PROC_NUM) do
     [PROCESS_TABLE+iter*16+4]=TERMINATED;
     iter=iter+1;
 endwhile;
@@ -132,7 +132,7 @@ while(iter<=75) do
     iter=iter+1;
 endwhile;
 
-while(iter<=127) do
+while(iter<NUM_MEM_PAGES) do
     [MEMORY_FREE_LIST+iter]=0;
     iter=iter+1;
 endwhile;
