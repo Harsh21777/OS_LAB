@@ -69,7 +69,7 @@ JZ R16, _L5
 MOV R16, 1
 EQ R16, EC
 JZ R16, _L7
-MOV R16, "Illegal Instruction"
+MOV R16, "II"
 PORT P1, R16
 OUT
 JMP _L8
@@ -78,7 +78,7 @@ _L8:
 MOV R16, 2
 EQ R16, EC
 JZ R16, _L9
-MOV R16, "Illegal Memory Access"
+MOV R16, "IMA"
 PORT P1, R16
 OUT
 JMP _L10
@@ -87,7 +87,7 @@ _L10:
 MOV R16, 3
 EQ R16, EC
 JZ R16, _L11
-MOV R16, "Arithmetic Exception"
+MOV R16, "AE"
 PORT P1, R16
 OUT
 JMP _L12

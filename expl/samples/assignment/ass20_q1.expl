@@ -1,0 +1,17 @@
+int main(){
+    decl
+        int temp,retVal;
+    enddecl 
+
+    begin 
+        retVal=exposcall("Fork");
+        //retval is 0 means it returned from child process
+        if(retVal!=0) then
+            temp=exposcall("Exec","even100.xsm");
+        else
+            temp=exposcall("Exec","odd100.xsm");
+        endif;        
+
+        return 0;
+    end
+}

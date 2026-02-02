@@ -43,9 +43,12 @@ PTLR=[new_processs_table_entry+15];
 
 //if process was in CREATED state before so nothing to restore
 if([new_processs_table_entry+4]==CREATED) then 
+    BP=[([new_processs_table_entry+11]*512)];
+    
     [new_processs_table_entry+4]=RUNNING;
     SP=[new_processs_table_entry+13];
     [new_processs_table_entry+9]=0;
+    
     ireturn;
 endif;
 

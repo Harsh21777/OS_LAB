@@ -78,7 +78,7 @@ if (funcNum == GET_CODE_PAGE) then
     alias pageNumber R5;
 
     i = 0;
-    while (i < 15) do
+    while (i < MAX_PROC_NUM) do
         j = 4;
         while (j < 8) do
             if ([DISK_MAP_TABLE + 10 * i + j] == blockNumber) then
@@ -114,7 +114,6 @@ if (funcNum == GET_CODE_PAGE) then
     multipop(R1, R2, R5);
 
     R0 = pageNumber;
-    breakpoint;
     return;
 endif;
     

@@ -1,13 +1,45 @@
 //load disk free list
 load(61,2);
 
+// loading ExHanding code from disk 15-16 to mem 2-3
+loadi(2,15);
+loadi(3,16);
+
+//loading timer interrupt routine 
+loadi(4,17);
+loadi(5,18);
+
 //load disk interrupt
 loadi(6,19);
 loadi(7,20);
 
-//load int9
+//load console interrupt
+loadi(8,21);
+loadi(9,22);
+
+//load INT6
+loadi(14,27);
+loadi(15,28);
+
+//load INT7 from disk to mem
+loadi(16,29);
+loadi(17,30);
+
+//load INT8
+loadi(18,31);
+loadi(19,32);
+
+//load INT9
 loadi(20,33);
 loadi(21,34);
+
+// loading INT 10 code from disk 35-36 to mem 22-23
+loadi(22,35);
+loadi(23,36);
+
+//load module 0 (resource manager)
+loadi(40,53);
+loadi(41,54);
 
 //load module 1 (process manager)
 loadi(42,55);
@@ -17,22 +49,6 @@ loadi(43,56);
 loadi(44,57);
 loadi(45,58);
 
-//load inode table
-loadi(59,3);
-loadi(60,4);
-
-//load console interrupt
-loadi(8,21);
-loadi(9,22);
-
-//load int6
-loadi(14,27);
-loadi(15,28);
-
-//load module 0 (resource manager)
-loadi(40,53);
-loadi(41,54);
-
 //load module 4 (device manager)
 loadi(48,61);
 loadi(49,62);
@@ -41,13 +57,9 @@ loadi(49,62);
 loadi(50,63);
 loadi(51,64);
 
-//load INT7 from disk to mem
-loadi(16,29);
-loadi(17,30);
-
-//loading timer interrupt routine 
-loadi(4,17);
-loadi(5,18);
+//load inode table
+loadi(59,3);
+loadi(60,4);
 
 // load library code
 loadi(63,13);
@@ -56,14 +68,6 @@ loadi(64,14);
 // loading INIT program from disk 7-8 to mem 65-66
 loadi(65,7);
 loadi(66,8);
-
-// loading INT 10 code from disk 35-36 to mem 22-23
-loadi(22,35);
-loadi(23,36);
-
-// loading ExHanding code from disk 15-16 to mem 2-3
-loadi(2,15);
-loadi(3,16);
 
 //FOR GCD(INIT) PROCESS
 
@@ -171,6 +175,7 @@ endwhile;
 //initialize the fields WAIT_MEM_COUNT to 0 and MEM_FREE_COUNT to number of free pages
 [SYSTEM_STATUS_TABLE+3]=0;
 [SYSTEM_STATUS_TABLE+2]=45;
+[SYSTEM_STATUS_TABLE+1]=0;
 
 
 
