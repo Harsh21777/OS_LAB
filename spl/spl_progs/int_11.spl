@@ -1,0 +1,91 @@
+//saving userStack and setting kernelStack
+alias userSP R1;
+userSP=SP;
+
+[PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+13]=SP;
+SP=[PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+11]*512-1;
+
+alias sysCallNo R2;
+sysCallNo=[([PTBR + 2*((userSP-5)/512)]*512)+((userSP-5)%512)];
+
+//WAIT syscall
+if(sysCallNo==INT_WAIT) then
+    //change MODE flg
+    [PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+9]=INT_WAIT;
+
+    alias otherPid R3;
+    otherPid=[([PTBR + 2*((userSP-4)/512)]*512)+((userSP-4)%512)];
+
+    //A process should not wait for itself or a TERMINATED process. The argument PID should be in valid range 
+    if((otherPid==[SYSTEM_STATUS_TABLE+1])||([PROCESS_TABLE+16*otherPid+4]==TERMINATED)||(otherPid>15)||(otherPid<0)) then
+        [([PTBR + 2*((userSP-1)/512)]*512)+((userSP-1)%512)]=-1;
+        [PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+9]=0;
+        SP=userSP;
+
+        ireturn;
+    endif;
+
+    //Change the state of the current process
+    [PROCESS_TABLE+16*[SYSTEM_STATUS_TABLE+1]+4]=WAIT_PROCESS;
+    [PROCESS_TABLE+16*[SYSTEM_STATUS_TABLE+1]+5]=otherPid;
+
+    multipush(R1,R2,R3);
+
+    call MOD_5;
+
+    multipop(R1,R2,R3);
+
+    [([PTBR + 2*((userSP-1)/512)]*512)+((userSP-1)%512)]=0;
+    [PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+9]=0;
+    SP=userSP;
+
+    ireturn;
+endif;
+
+//SIGNAL syscall
+if(sysCallNo==INT_SIGNAL) then
+    //change MODE flg
+    [PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+9]=INT_SIGNAL;
+
+    alias iter R3;
+    iter=0;
+    while(iter<MAX_PROC_NUM) do
+        if(([PROCESS_TABLE+16*iter+4]==WAIT_PROCESS)&&([PROCESS_TABLE+16*iter+5]==[SYSTEM_STATUS_TABLE+1])) then
+            [PROCESS_TABLE+16*iter+4]=READY;
+        endif;
+        iter=iter+1;
+    endwhile;
+
+    [([PTBR + 2*((userSP-1)/512)]*512)+((userSP-1)%512)]=0;
+    [PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+9]=0;
+    SP=userSP;
+
+    ireturn;
+endif;
+
+//get pid
+if(sysCallNo==INT_GETPID) then
+    //change MODE flg
+    [PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+9]=INT_GETPID;
+
+    //set pid as return val
+    [([PTBR + 2*((userSP-1)/512)]*512)+((userSP-1)%512)]=[PROCESS_TABLE+16*[SYSTEM_STATUS_TABLE+1]+1];
+
+    [PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+9]=0;
+    SP=userSP;
+
+    ireturn;
+endif;
+
+if(sysCallNo==INT_GETPPID) then
+    //change MODE flg
+    [PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+9]=INT_GETPPID;
+
+    //set pid as return val
+    [([PTBR + 2*((userSP-1)/512)]*512)+((userSP-1)%512)]=[PROCESS_TABLE+16*[SYSTEM_STATUS_TABLE+1]+2];
+
+    [PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+9]=0;
+    SP=userSP;
+
+    ireturn;
+endif;

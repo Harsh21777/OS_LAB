@@ -1,5 +1,5 @@
 //setting MODE flage to systemcall no. 5 which is for write
-[PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1] * 16 + 9] = 5;
+[PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1] * 16 + 9] = INT_WRITE;
 alias userSP R0;
 userSP=SP;
 
