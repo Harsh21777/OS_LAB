@@ -66,9 +66,7 @@ if(funcNum==EXIT_PROCESS) then
         endwhile;
     endif;
 
-    if([PROCESS_TABLE+16*pid+9]!=INT_EXEC) then
-        [PROCESS_TABLE+pid*16+4]=TERMINATED;
-    endif;
+    [PROCESS_TABLE+pid*16+4]=TERMINATED;
 
     breakpoint;
     return;
