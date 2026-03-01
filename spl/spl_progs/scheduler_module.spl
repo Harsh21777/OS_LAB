@@ -1,3 +1,6 @@
+//incr no. of context switch
+[32226]=[32226]+1;
+
 //Obtain the PID of the current process from the System Status Table.
 alias currentPID R1;
 currentPID=[SYSTEM_STATUS_TABLE +1];

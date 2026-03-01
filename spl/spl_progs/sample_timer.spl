@@ -1,3 +1,5 @@
+//incr no. switches to KERNEL
+[32227]=[32227]+1;
 
 //setting UPTR of current process in process table of current process
 [PROCESS_TABLE + ( [SYSTEM_STATUS_TABLE + 1] * 16) + 13] = SP;

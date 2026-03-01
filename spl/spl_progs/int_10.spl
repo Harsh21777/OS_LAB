@@ -1,3 +1,6 @@
+//incr no. switches to KERNEL
+[32227]=[32227]+1;
+
 //set MODE flag
 [PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+9]=INT_EXIT;
 

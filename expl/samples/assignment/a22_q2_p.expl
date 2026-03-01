@@ -1,0 +1,22 @@
+int main()
+{
+    decl
+        int temp,pid,mypid;
+    enddecl
+
+    begin
+        pid = exposcall("Fork");
+        pid = exposcall("Fork");
+        pid = exposcall("Fork");
+
+        if(pid==-1) then
+            temp=exposcall("Write", -2, "Fork Error");
+        else
+            mypid=exposcall("Getpid");
+            temp=exposcall("Write", -2, mypid);
+        endif;
+
+        temp = exposcall("Exec", "a22_q2_c.xsm");
+        return 0;
+    end
+}

@@ -1,9 +1,10 @@
 alias retVal R0;
 alias funcNum R1;
-alias currentPID R2;
+
 
 //aquire disk
 if(funcNum==ACQUIRE_DISK) then
+    alias currentPID R2;
     while([DISK_STATUS_TABLE]==1) do
         [PROCESS_TABLE+currentPID*16+4]=WAIT_DISK;
         multipush(R1,R2);
@@ -20,6 +21,7 @@ endif;
 
 //aquire terminal
 if(funcNum==ACQUIRE_TERMINAL) then 
+    alias currentPID R2;
 
     while([TERMINAL_STATUS_TABLE]!=0) do
         [PROCESS_TABLE+currentPID*16+4]=WAIT_TERMINAL;
@@ -40,6 +42,8 @@ endif;
 
 //release terminal
 if(funcNum==RELEASE_TERMINAL) then 
+    alias currentPID R2;
+
     if(currentPID!=[TERMINAL_STATUS_TABLE+1]) then
         retVal=-1;
         return;
@@ -62,6 +66,60 @@ if(funcNum==RELEASE_TERMINAL) then
     return;
 endif;
 
+//aquire semphore
+if(funcNum==ACQUIRE_SEMAPHORE) then
+    alias currentPID R2;
+    
+    alias iter R3;
+    iter=0;
+    while(iter<32) do
+        if([SEMAPHORE_TABLE+(iter*4)+1]==0) then
+            break;
+        endif;
+    endwhile;
+
+    if(iter==32) then
+        retVal=-1;
+        return;
+    endif;
+
+    //set locking pid to -1 & proc count to 1
+    [SEMAPHORE_TABLE+(iter*4)]=-1;
+    [SEMAPHORE_TABLE+(iter*4)+1]=1;
+
+    retVal=iter;
+    return;
+
+endif;
+
+//release semaphore
+if(funcNum==RELEASE_SEMAPHORE) then
+    alias semTableIdx R2;
+    alias currentPID R3;
+
+    if((semTableIdx>31)||(semTableIdx<0)) then
+        retVal=-1;
+        return;
+    endif;
+
+    if([SEMAPHORE_TABLE+(semTableIdx*4)]==currentPID) then
+        [SEMAPHORE_TABLE+(semTableIdx*4)]=-1;
+
+        alias iter R4;
+        iter=0;
+        while(iter<16) do
+            if(([PROCESS_TABLE+(iter*16)+4]==WAIT_SEMAPHORE)&&([PROCESS_TABLE+(iter*16)+5]==semTableIdx)) then
+                [PROCESS_TABLE+(iter*16)+4]=READY;
+            endif;
+            iter=iter+1;
+        endwhile;
+    endif;
+
+    [SEMAPHORE_TABLE+(semTableIdx*4)+1]=[SEMAPHORE_TABLE+(semTableIdx*4)+1]-1;
+
+    retVal=0;
+    return;
+endif;
 
 
 

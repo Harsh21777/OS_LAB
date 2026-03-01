@@ -41,6 +41,14 @@ loadi(23,36);
 loadi(24,37);
 loadi(25,38);
 
+//load INT13
+loadi(28,41);
+loadi(29,42);
+
+//load INT14
+loadi(30,43);
+loadi(31,44);
+
 //load INT15
 loadi(32,45);
 loadi(33,46);
@@ -173,6 +181,15 @@ endwhile;
 [DISK_MAP_TABLE+1*10+4]=7;
 [DISK_MAP_TABLE+1*10+5]=8;
 
+//initialise SEMAPHORE_TABLE
+iter=0;
+while(iter<32) do 
+    [SEMAPHORE_TABLE+(iter*4)]=-1;
+    [SEMAPHORE_TABLE+(iter*4)+1]=0;
+
+    iter=iter+1;
+endwhile;
+
 
 //initialize the STATUS field in the Terminal Status table as 0.
 [TERMINAL_STATUS_TABLE]=0;
@@ -185,6 +202,17 @@ endwhile;
 [SYSTEM_STATUS_TABLE+2]=45;
 [SYSTEM_STATUS_TABLE+1]=0;
 
+
+//for assg 22 q2&q3
+//allocating unused memory in root file i.e. page no. 62 from 32224-32255
+//memory use ->32224
+[32224]=0;
+//no. of disk access->32225
+[32225]=0;
+//no. of context switch->32226
+[32226]=0;
+//no. of switches to KERNEL->32227
+[32227]=0;
 
 
 return;

@@ -24,11 +24,28 @@ endif;
 //free userAreaPage
 if(funcNum==FREE_USER_AREA_PAGE) then
     alias pid R2;
-    multipush(R1,R2);
+
+    alias iter R3;
+    iter=0;
+    while(iter<16) do
+        if([[PROCESS_TABLE+pid*16+11]*512+496+iter]==1) then
+            multipush(R1,R2,R3);
+
+            R1=RELEASE_SEMAPHORE;
+            R2=[[PROCESS_TABLE+pid*16+11]*512+496+iter+1];
+            R3=pid;
+            call MOD_0;//resource manager
+
+            multipop(R1,R2,R3);           
+        endif;
+        iter=iter+2;
+    endwhile;
+
+    multipush(R1,R2,R3);
     R1=RELEASE_PAGE;
     R2=[PROCESS_TABLE+pid*16+11];
     call MOD_2;
-    multipop(R1,R2);
+    multipop(R1,R2,R3);
 
     breakpoint;
     return;

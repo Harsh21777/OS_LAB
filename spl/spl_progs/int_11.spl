@@ -1,3 +1,6 @@
+//incr no. switches to KERNEL
+[32227]=[32227]+1;
+
 //saving userStack and setting kernelStack
 alias userSP R1;
 userSP=SP;

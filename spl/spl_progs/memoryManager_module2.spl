@@ -16,6 +16,11 @@ if(funcNum==GET_FREE_PAGE) then
     [SYSTEM_STATUS_TABLE+3]=[SYSTEM_STATUS_TABLE+3]-1;
     [SYSTEM_STATUS_TABLE+2]=[SYSTEM_STATUS_TABLE+2]-1;
 
+    //updating maximum memory use
+    if([32224]<(128-[SYSTEM_STATUS_TABLE+2])) then
+        [32224]=(128-[SYSTEM_STATUS_TABLE+2]);
+    endif;
+
     alias iter R2;
     iter=76;
     while(iter<MAX_MEM_PAGE) do

@@ -1,0 +1,104 @@
+//incr no. switches to KERNEL
+[32227]=[32227]+1;
+
+//saving userStack and setting kernelStack
+alias userSP R1;
+userSP=SP;
+
+[PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+13]=SP;
+SP=[PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+11]*512-1;
+
+alias sysCallNo R2;
+sysCallNo=[([PTBR + 2*((userSP-5)/512)]*512)+((userSP-5)%512)];
+
+//semget
+if(sysCallNo==INT_SEMGET) then
+    //change MODE flg
+    [PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+9]=INT_SEMGET;
+
+    alias perProcResourceEntry R3;
+    perProcResourceEntry=[PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+11]*512+496;
+
+    alias iter R4;
+    iter=0;
+    while(iter<16) do
+        if([perProcResourceEntry+iter]==-1) then
+            break;
+        endif;
+        iter=iter+2;
+    endwhile;
+
+    //Process has reached its limit of resources
+    if(iter==16) then
+        [([PTBR + 2*((userSP-1)/512)]*512)+((userSP-1)%512)]=-1;
+        [PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+9]=0;
+        SP=userSP;
+
+        ireturn;
+    endif;
+
+    multipush(R1,R2,R3,R4);
+
+    R1=ACQUIRE_SEMAPHORE;
+    R2=[SYSTEM_STATUS_TABLE+1];
+    call MOD_0;//resource manager
+
+    multipop(R1,R2,R3,R4);
+
+    //No free entry exist in semaphore table
+    if(R0==-1) then
+        [([PTBR + 2*((userSP-1)/512)]*512)+((userSP-1)%512)]=-2;
+        [PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+9]=0;
+        SP=userSP;
+
+        ireturn;
+    endif;
+
+    [perProcResourceEntry+iter]=1;
+    [perProcResourceEntry+iter+1]=R0;
+
+    [([PTBR + 2*((userSP-1)/512)]*512)+((userSP-1)%512)]=(iter/2);//perProcResource table entry index for this semaphore
+    [PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+9]=0;
+    SP=userSP;
+
+    ireturn;
+endif;
+
+//semrelease
+if(sysCallNo==INT_SEMRELEASE) then
+    //change MODE flg
+    [PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+9]=INT_SEMRELEASE;
+
+    alias semId R3;
+    semId=[([PTBR + 2*((userSP-4)/512)]*512)+((userSP-4)%512)];
+
+    alias perProcResourceEntry R4;
+    perProcResourceEntry=[PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+11]*512+496;
+
+    //semaphore descriptor invalid
+    if((semId<0)||(semId>7)||([perProcResourceEntry+(semId*2)]!=1)) then
+        [([PTBR + 2*((userSP-1)/512)]*512)+((userSP-1)%512)]=-1;
+        [PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+9]=0;
+        SP=userSP;
+
+        ireturn;
+    endif;
+
+    multipush(R1,R2,R3,R4);
+
+    R1=RELEASE_SEMAPHORE;
+    R2=[perProcResourceEntry+(semId*2)+1];
+    R3=[SYSTEM_STATUS_TABLE+1];
+    call MOD_0;//resource manager
+
+    multipop(R1,R2,R3,R4);
+
+    [perProcResourceEntry+(semId*2)]=-1;
+
+    [([PTBR + 2*((userSP-1)/512)]*512)+((userSP-1)%512)]=0;//success
+    [PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+9]=0;
+    SP=userSP;
+
+    ireturn;
+
+endif;

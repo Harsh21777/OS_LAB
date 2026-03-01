@@ -3,6 +3,9 @@ alias currentPID R2;
 
 //disk load
 if(funcNum==DISK_LOAD) then
+    //incr no. of disk access
+    [32225]=[32225]+1;
+    
     alias pageNum R3;
     alias blkNum R4;
     multipush(R1,R2,R3,R4);

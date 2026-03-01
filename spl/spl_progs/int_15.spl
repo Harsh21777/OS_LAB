@@ -1,1 +1,10 @@
+//incr no. switches to KERNEL
+[32227]=[32227]+1;
+
+print [32224];
+print [32225];
+print [32226];
+print [32227];
+
+
 halt;

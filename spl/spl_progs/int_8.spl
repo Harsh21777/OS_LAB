@@ -1,3 +1,6 @@
+//incr no. switches to KERNEL
+[32227]=[32227]+1;
+
 //saving userStack and setting kernelStack
 alias userSP R1;
 userSP=SP;
@@ -104,7 +107,16 @@ alias iter R5;
 iter=496;
 while(iter<512) do
     [[processTableEntryChild+11]*512+iter]=[[PROCESS_TABLE+([SYSTEM_STATUS_TABLE+1]*16)+11]*512+iter];
-    iter=iter+1;
+    [[processTableEntryChild+11]*512+iter+1]=[[PROCESS_TABLE+([SYSTEM_STATUS_TABLE+1]*16)+11]*512+iter+1];
+
+    //increase process count in sem table
+    if([[PROCESS_TABLE+([SYSTEM_STATUS_TABLE+1]*16)+11]*512+iter]==1) then
+        alias semTableIdx R8;
+        semTableIdx=[[PROCESS_TABLE+([SYSTEM_STATUS_TABLE+1]*16)+11]*512+iter+1];
+
+        [SEMAPHORE_TABLE+(semTableIdx*4)+1]=[SEMAPHORE_TABLE+(semTableIdx*4)+1]+1;
+    endif;
+    iter=iter+2;
 endwhile;
 
 //Copy the per-process disk map table of the parent to the child
