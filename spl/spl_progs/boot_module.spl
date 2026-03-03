@@ -1,5 +1,8 @@
+//load root file
+loadi(62,5);
+
 //load disk free list
-load(61,2);
+loadi(61,2);
 
 // loading ExHanding code from disk 15-16 to mem 2-3
 loadi(2,15);
@@ -16,6 +19,10 @@ loadi(7,20);
 //load console interrupt
 loadi(8,21);
 loadi(9,22);
+
+//load INT4
+loadi(10,23);
+loadi(11,24);
 
 //load INT6
 loadi(14,27);
@@ -128,6 +135,8 @@ PTLR = 10;
 [PROCESS_TABLE +1*16+ 11] = 80;
 //setting PID for 1st process 
 [PROCESS_TABLE+1*16+1]=1;
+//set userId to root i.e. 1
+[PROCESS_TABLE+1*16+3]=1;
 //setinng state
 [PROCESS_TABLE+1*16+4]=CREATED;
 //seting UPTR field 
@@ -190,6 +199,25 @@ while(iter<32) do
     iter=iter+1;
 endwhile;
 
+//initialize file status table
+iter=0;
+while(iter<MAX_FILE_NUM) do
+    [FILE_STATUS_TABLE+iter*4+0]=-1;
+    [FILE_STATUS_TABLE+iter*4+1]=-1;
+
+    iter=iter+1;
+endwhile;
+
+//initializing buffer table
+iter=0;
+
+while(iter<MAX_BUFFER) do
+    [BUFFER_TABLE+iter*4+0]=-1;
+    [BUFFER_TABLE+iter*4+1]=0;
+    [BUFFER_TABLE+iter*4+2]=-1;
+
+    iter=iter+1;
+endwhile;
 
 //initialize the STATUS field in the Terminal Status table as 0.
 [TERMINAL_STATUS_TABLE]=0;
@@ -201,6 +229,8 @@ endwhile;
 [SYSTEM_STATUS_TABLE+3]=0;
 [SYSTEM_STATUS_TABLE+2]=45;
 [SYSTEM_STATUS_TABLE+1]=0;
+
+
 
 
 //for assg 22 q2&q3

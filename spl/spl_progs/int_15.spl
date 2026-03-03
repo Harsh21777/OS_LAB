@@ -1,10 +1,61 @@
 //incr no. switches to KERNEL
 [32227]=[32227]+1;
 
-print [32224];
-print [32225];
-print [32226];
-print [32227];
+//printing max mem use,no. of disk access,no. of context switches,no. of switches to KERNEL
+//print [32224];
+//print [32225];
+//print [32226];
+//print [32227];
 
+//saving userStack and setting kernelStack
+alias userSP R1;
+userSP=SP;
+
+[PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+13]=SP;
+SP=[PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+11]*512-1;
+
+//change MODE flg
+[PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+9]=INT_SHUTDOWN;
+
+if(([SYSTEM_STATUS_TABLE+1]!=1) && ([PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+3]!=ROOT)) then
+    [([PTBR + 2*((userSP-1)/512)]*512)+((userSP-1)%512)]=-1;
+    [PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+9]=0;
+    SP=userSP;
+
+    ireturn;
+endif;
+
+//commit changes in user table,inode table,root file etc
+
+multipush(R1);
+
+//inode table and user table
+R1=DISK_STORE;
+R2=[SYSTEM_STATUS_TABLE+1];
+R3=59;
+R4=3;
+call MOD_4;//device manager
+
+R1=DISK_STORE;
+R2=[SYSTEM_STATUS_TABLE+1];
+R3=60;
+R4=4;
+call MOD_4;//device manager
+
+//root file
+R1=DISK_STORE;
+R2=[SYSTEM_STATUS_TABLE+1];
+R3=62;
+R4=5;
+call MOD_4;//device manager
+
+//disk free list
+R1=DISK_STORE;
+R2=[SYSTEM_STATUS_TABLE+1];
+R3=61;
+R4=2;
+call MOD_4;//device manager
+
+multipop(R1);
 
 halt;

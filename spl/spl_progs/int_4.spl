@@ -1,0 +1,232 @@
+//incr no. switches to KERNEL
+[32227]=[32227]+1;
+
+//saving userStack and setting kernelStack
+alias userSP R1;
+userSP=SP;
+
+[PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+13]=SP;
+SP=[PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+11]*512-1;
+
+alias sysCallNo R2;
+sysCallNo=[([PTBR + 2*((userSP-5)/512)]*512)+((userSP-5)%512)];
+
+alias fileName R3;
+fileName=[([PTBR + 2*((userSP-4)/512)]*512)+((userSP-4)%512)];
+
+alias returnValAddr R7;
+returnValAddr=([PTBR + 2*((userSP-1)/512)]*512)+((userSP-1)%512);
+
+alias process_table R10;
+process_table=PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16;
+
+alias modeFlgAddr R8;
+modeFlgAddr=process_table+9;
+
+
+//create 
+if(sysCallNo==INT_CREATE) then
+    //change MODE flg
+    [modeFlgAddr]=INT_CREATE;
+
+    alias permission R4;
+    permission=[([PTBR + 2*((userSP-3)/512)]*512)+((userSP-3)%512)];
+
+    alias inodeEntry R5;
+    inodeEntry=0;
+    //check if file already exist
+    while(inodeEntry<MAX_FILE_NUM) do
+        if([INODE_TABLE+inodeEntry*16+1]==fileName) then
+            [returnValAddr]=0;
+            [modeFlgAddr]=0;
+            SP=userSP;
+
+            ireturn;
+        endif;
+        inodeEntry=inodeEntry+1;
+    endwhile;
+
+    //find free inode entry
+    inodeEntry=0;
+    while(inodeEntry<MAX_FILE_NUM) do
+        if([INODE_TABLE+inodeEntry*16+1]==-1) then
+            break;
+        endif;
+        inodeEntry=inodeEntry+1;
+    endwhile;
+    
+    //if free entry not found
+    if(inodeEntry==MAX_FILE_NUM) then
+        [returnValAddr]=-1;
+        [modeFlgAddr]=0;
+        SP=userSP;
+
+        ireturn;
+    endif;
+
+    alias inode_table R9;
+    inode_table=INODE_TABLE+inodeEntry*16;
+    //seting type,name,size and blocknum field in inode table
+    [inode_table+0]=DATA;
+    [inode_table+1]=fileName;
+    [inode_table+2]=0;
+    [inode_table+8]=-1;
+    [inode_table+9]=-1;
+    [inode_table+10]=-1;
+    [inode_table+11]=-1;
+
+    //userID and permission
+    [inode_table+3]=[process_table+3];
+    [inode_table+4]=permission;
+
+    //setting root file entry
+    alias root_file R6;
+    root_file=ROOT_FILE+inodeEntry*8;
+
+    //fileName,size,type,userName,permission
+    [root_file+0]=fileName;
+    [root_file+1]=0;
+    [root_file+2]=DATA;
+    [root_file+3]=[USER_TABLE+([process_table+3]*2)+0];
+    [root_file+4]=permission;
+
+    [returnValAddr]=0;
+    [modeFlgAddr]=0;
+    SP=userSP;
+
+    ireturn;
+endif;
+
+//delete
+if(sysCallNo==INT_DELETE) then
+    //change MODE flg
+    [modeFlgAddr]=INT_DELETE;
+
+    alias inodeEntry R4;
+    inodeEntry=0;
+    while(inodeEntry<MAX_FILE_NUM) do
+        if([INODE_TABLE+inodeEntry*16+1]==fileName) then
+            break;
+        endif;
+        inodeEntry=inodeEntry+1;
+    endwhile;
+
+    //file not exist
+    if(inodeEntry==MAX_FILE_NUM) then
+        [returnValAddr]=0;
+        [modeFlgAddr]=0;
+        SP=userSP;
+
+        ireturn;
+    endif;
+
+    alias inode_table R9;
+    inode_table=INODE_TABLE+inodeEntry*16;
+    
+    //if file not data file
+    if([inode_table+0]!=DATA) then
+        [returnValAddr]=-1;
+        [modeFlgAddr]=0;
+        SP=userSP;
+
+        ireturn;
+    endif;
+
+    //if exclusive permission set
+    if([inode_table+4]==EXCLUSIVE) then
+        if(([process_table+3]!=ROOT) && ([inode_table+3]!=[process_table+3])) then
+            [returnValAddr]=-1;
+            [modeFlgAddr]=0;
+            SP=userSP;
+
+            ireturn;
+        endif;
+    endif;
+
+    //aquire inode lock
+    multipush(R1,R2,R3,R4,R7,R8,R9,R10);
+
+    R1=ACQUIRE_INODE;
+    R2=inodeEntry;
+    R3=[SYSTEM_STATUS_TABLE+1];
+    call MOD_0;//resource manager
+
+    multipop(R1,R2,R3,R4,R7,R8,R9,R10);
+    
+    //if file is open somewhere
+    if([FILE_STATUS_TABLE+inodeEntry*4+1]!=-1) then
+        multipush(R1,R2,R3,R4);
+
+        R1=RELEASE_INODE;
+        R2=inodeEntry;
+        R3=[SYSTEM_STATUS_TABLE+1];
+        call MOD_0;//resource manager
+
+        multipop(R1,R2,R3,R4);
+
+        [returnValAddr]=-2;
+        [modeFlgAddr]=0;
+        SP=userSP;
+
+        ireturn;
+
+    endif;
+
+    //if file blocks are in buffer and dirty bit is set
+    alias iter R5;
+    iter=0;
+    while(iter<4) do
+        if([inode_table+8+iter]!=-1) then
+            alias interIter R6;
+            interIter=0;
+            while(interIter<MAX_BUFFER) do
+                if(([BUFFER_TABLE+interIter*4+0]==[inode_table+8+iter])&&([BUFFER_TABLE+interIter*4+1]==1)) then
+                    [BUFFER_TABLE+interIter*4+1]=0;
+                endif;
+                interIter=interIter+1;
+            endwhile;
+
+            multipush(R1,R2,R3,R4,R5,R6,R7,R8,R9,R10);
+
+            R1=RELEASE_BLOCK;
+            R2=[inode_table+8+iter];
+            R3=[SYSTEM_STATUS_TABLE+1];
+            call MOD_2;//memory manager
+
+            multipop(R1,R2,R3,R4,R5,R6,R7,R8,R9,R10);
+            
+        endif;
+        iter=iter+1;
+    endwhile;
+
+    //invalidate inode table entry of file
+    iter=0;
+    while(iter<16) do
+        [inode_table+iter]=-1;
+        iter=iter+1;
+    endwhile;
+
+    //invalidate root file entry also
+    iter=0;
+    while(iter<5) do
+        [ROOT_FILE+inodeEntry*8+iter]=-1;
+        iter=iter+1;
+    endwhile;
+
+    //release inode lock
+    multipush(R1,R2,R3,R4,R5,R6,R7,R8);
+
+    R1=RELEASE_INODE;
+    R2=inodeEntry;
+    R3=[SYSTEM_STATUS_TABLE+1];
+    call MOD_0;//resource manager
+
+    multipop(R1,R2,R3,R4,R5,R6,R7,R8);
+
+
+    [returnValAddr]=0;
+    [modeFlgAddr]=0;
+    SP=userSP;
+
+    ireturn;
+endif;
