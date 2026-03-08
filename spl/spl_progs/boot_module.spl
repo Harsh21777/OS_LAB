@@ -24,6 +24,10 @@ loadi(9,22);
 loadi(10,23);
 loadi(11,24);
 
+//load INT5
+loadi(12,25);
+loadi(13,26);
+
 //load INT6
 loadi(14,27);
 loadi(15,28);
@@ -71,6 +75,10 @@ loadi(43,56);
 //load module 2 (memory manager)
 loadi(44,57);
 loadi(45,58);
+
+//load module 3 (file manager)
+loadi(46,59);
+loadi(47,60);
 
 //load module 4 (device manager)
 loadi(48,61);
@@ -210,11 +218,19 @@ endwhile;
 
 //initializing buffer table
 iter=0;
-
 while(iter<MAX_BUFFER) do
     [BUFFER_TABLE+iter*4+0]=-1;
     [BUFFER_TABLE+iter*4+1]=0;
     [BUFFER_TABLE+iter*4+2]=-1;
+
+    iter=iter+1;
+endwhile;
+
+//initialise open file table
+iter=0;
+while(iter<MAX_OPENFILE_NUM) do
+    [OPEN_FILE_TABLE+iter*4+0]=-1;
+    [OPEN_FILE_TABLE+iter*4+1]=0;
 
     iter=iter+1;
 endwhile;

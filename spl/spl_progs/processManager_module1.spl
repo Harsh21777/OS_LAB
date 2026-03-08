@@ -28,7 +28,8 @@ if(funcNum==FREE_USER_AREA_PAGE) then
     alias iter R3;
     iter=0;
     while(iter<16) do
-        if([[PROCESS_TABLE+pid*16+11]*512+496+iter]==1) then
+        //release semaphores
+        if([[PROCESS_TABLE+pid*16+11]*512+RESOURCE_TABLE_OFFSET+iter]==SEMAPHORE) then
             multipush(R1,R2,R3);
 
             R1=RELEASE_SEMAPHORE;
@@ -38,6 +39,18 @@ if(funcNum==FREE_USER_AREA_PAGE) then
 
             multipop(R1,R2,R3);           
         endif;
+
+        //release files
+        if([[PROCESS_TABLE+pid*16+11]*512+RESOURCE_TABLE_OFFSET+iter]==FILE) then
+            multipush(R1,R2,R3);
+
+            R1=CLOSE;
+            R2=[[PROCESS_TABLE+pid*16+11]*512+496+iter+1];
+            call MOD_3;//file manager
+
+            multipop(R1,R2,R3);           
+        endif;
+
         iter=iter+2;
     endwhile;
 
@@ -58,7 +71,9 @@ if(funcNum==EXIT_PROCESS) then
     R1=FREE_PAGE_TABLE;
     R2=pid;
     call MOD_1;
+    multipop(R1,R2);
 
+    multipush(R1,R2);
     R1=FREE_USER_AREA_PAGE;
     R2=pid;
     call MOD_1;

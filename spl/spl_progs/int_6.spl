@@ -4,68 +4,154 @@
 //saving MODE flag
 [PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+9]=INT_READ;
 
-alias userSP R0;
+alias userSP R1;
 userSP=SP;
 
 [PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+13]=SP;
 
 SP=[PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+11]*512-1;
 
-alias fileDesc R1;
-alias offset R2;
-alias pageNum R3;
-alias fileDescAddr R4;
-alias pageTable R5;
+alias fileDesc R2;
+fileDesc=[([PTBR + 2*((userSP-4)/512)]*512)+((userSP-4)%512)];
 
-pageTable=PAGE_TABLE_BASE+20*[SYSTEM_STATUS_TABLE+1];
+if(fileDesc==-1) then
 
-pageNum=[pageTable + 2*((userSP-4)/512)] ;
-offset=(userSP-4)%512;
-fileDescAddr=pageNum*512+offset;
-fileDesc=[fileDescAddr];
+    alias wordPutAddr R3;
+    wordPutAddr=[([PTBR + 2*((userSP-3)/512)]*512)+((userSP-3)%512)];
 
-if(fileDesc!=-1) then
-    alias retAddr R4;
-    alias returnVal R1;
-    pageNum=[pageTable + 2*((userSP-1)/512)] ;
-    offset=(userSP-1)%512;
-    retAddr=pageNum*512+offset;
-    returnVal=[retAddr];
-    returnVal=-1;
-else
-    alias wordAddr R4;
-    alias wordPutAddr R6;
-    pageNum=[pageTable + 2*((userSP-3)/512)] ;
-    offset=(userSP-3)%512;
-    wordAddr=pageNum*512+offset;
-    wordPutAddr=[wordAddr];
+    multipush(R1,R2,R3);
 
-    multipush(R0,R1,R2,R3,R4,R5);
-
-    alias funcNum R1;
-    alias currentPID R2;
-    alias wordPutAddrCopy R3;
-
-    funcNum=TERMINAL_READ;
-    currentPID=[SYSTEM_STATUS_TABLE+1];
-    wordPutAddrCopy=wordPutAddr;
+    R1=TERMINAL_READ;
+    R2=[SYSTEM_STATUS_TABLE+1];
+    R3=wordPutAddr;
 
     call MOD_4;
 
-    multipop(R0,R1,R2,R3,R4,R5);
+    multipop(R1,R2,R3);
 
-    alias retAddr R4;
-    alias returnVal R1;
-    pageNum=[pageTable+ 2*((userSP-1)/512)] ;
-    offset=(userSP-1)%512;
-    retAddr=pageNum*512+offset;
-    returnVal=[retAddr];
-    returnVal=0;
+else
+    //file descriptor is invalid
+    if(fileDesc>7||fileDesc<0) then
+        [([PTBR + 2*((userSP-1)/512)]*512)+((userSP-1)%512)]=-1;
+        [PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+9]=0;
+        SP=userSP;
+
+        ireturn;        
+    endif;
+
+    alias perProcRes_table R3;
+    alias perProcResTableEntry R4;
+    perProcRes_table=[PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+11]*512+RESOURCE_TABLE_OFFSET;
+    perProcResTableEntry=perProcRes_table+fileDesc*2;
+
+    //Per Process Resource Table entry does not indicate a FILE
+    if([perProcResTableEntry+0]!=FILE) then
+        [([PTBR + 2*((userSP-1)/512)]*512)+((userSP-1)%512)]=-1;
+        [PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+9]=0;
+        SP=userSP;
+
+        ireturn;   
+    endif;
+
+    alias opnFileTblIdx R5;
+    alias inodeIdx R6;
+    opnFileTblIdx=[perProcResTableEntry+1];
+    inodeIdx=[OPEN_FILE_TABLE+opnFileTblIdx*4+0];
+
+    multipush(R1,R2,R3,R4,R5,R6);
+
+    R1=ACQUIRE_INODE;
+    R2=inodeIdx;
+    R3=[SYSTEM_STATUS_TABLE+1];
+    call MOD_0; //resource manager
+
+    multipop(R1,R2,R3,R4,R5,R6);
+
+    //acquire inode fails
+    if(R0==-1) then
+        [([PTBR + 2*((userSP-1)/512)]*512)+((userSP-1)%512)]=-1;
+        [PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+9]=0;
+        SP=userSP;
+
+        ireturn;
+    endif;
+
+    alias lSeekPos R7;
+    alias wordPutAddr R8;
+    lSeekPos=OPEN_FILE_TABLE+opnFileTblIdx*4+2;
+    wordPutAddr=[([PTBR + 2*((userSP-3)/512)]*512)+((userSP-3)%512)];
+    wordPutAddr = [PTBR + 2 * (wordPutAddr / 512)] * 512 + wordPutAddr % 512;
+    
+
+    //File corresponds to Root file
+    if(inodeIdx==INODE_ROOT) then
+        //lseek value is equal to the root file size(480)
+        if([lSeekPos]==480) then
+            multipush(R1,R2,R3,R4,R5,R6,R7,R8);
+
+            R1=RELEASE_INODE;
+            R2=inodeIdx;
+            R3=[SYSTEM_STATUS_TABLE+1];
+            call MOD_0; //resource manager
+
+            multipop(R1,R2,R3,R4,R5,R6,R7,R8);
+
+            [([PTBR + 2*((userSP-1)/512)]*512)+((userSP-1)%512)]=-2;
+            [PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+9]=0;
+            SP=userSP;
+
+            ireturn;
+        endif;
+
+        //Read from the word and increment lseek pointer 
+        [wordPutAddr]=[ROOT_FILE+[lSeekPos]];
+        [OPEN_FILE_TABLE+opnFileTblIdx*4+2]=[OPEN_FILE_TABLE+opnFileTblIdx*4+2]+1;
+
+    else
+        if([lSeekPos]==[INODE_TABLE+inodeIdx*16+2]) then
+            multipush(R1,R2,R3,R4,R5,R6,R7,R8);
+
+            R1=RELEASE_INODE;
+            R2=inodeIdx;
+            R3=[SYSTEM_STATUS_TABLE+1];
+            call MOD_0; //resource manager
+
+            multipop(R1,R2,R3,R4,R5,R6,R7,R8);
+
+            [([PTBR + 2*((userSP-1)/512)]*512)+((userSP-1)%512)]=-2;
+            [PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+9]=0;
+            SP=userSP;
+
+            ireturn;
+        endif;
+
+        //Read using buffered read and increment lseek pointer 
+        multipush(R1,R2,R3,R4,R5,R6,R7,R8);
+
+        R1=BUFFERED_READ;
+        R2=[INODE_TABLE+inodeIdx*16+8+([lSeekPos]/512)];//disk blk no.
+        R3=[lSeekPos]%512;//offset
+        R4=wordPutAddr;
+        call MOD_3;//file manager
+
+        multipop(R1,R2,R3,R4,R5,R6,R7,R8);
+
+        [OPEN_FILE_TABLE+opnFileTblIdx*4+2]=[OPEN_FILE_TABLE+opnFileTblIdx*4+2]+1;
+    endif;
+    
+    multipush(R1,R2,R3,R4,R5,R6,R7,R8);
+
+    R1=RELEASE_INODE;
+    R2=inodeIdx;
+    R3=[SYSTEM_STATUS_TABLE+1];
+    call MOD_0; //resource manager
+
+    multipop(R1,R2,R3,R4,R5,R6,R7,R8);
 
 endif;
 
+[([PTBR + 2*((userSP-1)/512)]*512)+((userSP-1)%512)]=0;
 [PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+9]=0;
-
 SP=userSP;
 
 ireturn;

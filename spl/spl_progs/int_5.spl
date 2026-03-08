@@ -1,0 +1,118 @@
+//incr no. switches to KERNEL
+[32227]=[32227]+1;
+
+//saving userStack and setting kernelStack
+alias userSP R1;
+userSP=SP;
+
+[PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+13]=SP;
+SP=[PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+11]*512-1;
+
+alias sysCallNo R2;
+sysCallNo=[([PTBR + 2*((userSP-5)/512)]*512)+((userSP-5)%512)];
+
+alias perProcRes_table R5;
+perProcRes_table=[PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+11]*512+RESOURCE_TABLE_OFFSET;
+
+
+if(sysCallNo==INT_OPEN) then
+    alias fileName R4;
+    fileName=[([PTBR + 2*((userSP-4)/512)]*512)+((userSP-4)%512)];
+
+    //saving MODE flag
+    [PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+9]=INT_OPEN;
+
+    alias perProcResTableEntry R3;
+    perProcResTableEntry=0;
+    //Find a free Per-Process Resource Table entry.
+    while(perProcResTableEntry<8) do
+        if([perProcRes_table+perProcResTableEntry*2+0]==-1) then
+            break;
+        endif;
+        perProcResTableEntry=perProcResTableEntry+1;
+    endwhile;
+
+    //no free entry
+    if(perProcResTableEntry==8) then
+        [([PTBR + 2*((userSP-1)/512)]*512)+((userSP-1)%512)]=-3;
+        [PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+9]=0;
+        SP=userSP;
+
+        ireturn;
+    endif;
+
+    //Call the open() func to get the Open File table entry.
+    multipush(R1,R2,R3,R4,R5);
+
+    R1=OPEN;
+    R2=fileName;
+    call MOD_3;
+
+    multipop(R1,R2,R3,R4,R5);
+
+    if(R0<0) then
+        [([PTBR + 2*((userSP-1)/512)]*512)+((userSP-1)%512)]=R0;
+        [PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+9]=0;
+        SP=userSP;
+
+        ireturn;
+    endif;
+
+    // Set the Per-Process Resource Table entry
+    [perProcRes_table+perProcResTableEntry*2+0]=0;
+    [perProcRes_table+perProcResTableEntry*2+1]=R0;
+
+    [([PTBR + 2*((userSP-1)/512)]*512)+((userSP-1)%512)]=perProcResTableEntry;
+    [PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+9]=0;
+    SP=userSP;
+
+    ireturn;
+endif;
+
+if(sysCallNo==INT_CLOSE) then
+    alias fileDesc R4;
+    fileDesc=[([PTBR + 2*((userSP-4)/512)]*512)+((userSP-4)%512)];
+
+    //saving MODE flag
+    [PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+9]=INT_CLOSE;
+
+    //file descriptor is invalid
+    if(fileDesc<0||fileDesc>7) then
+        [([PTBR + 2*((userSP-1)/512)]*512)+((userSP-1)%512)]=-1;
+        [PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+9]=0;
+        SP=userSP;
+
+        ireturn;
+    endif;
+
+    //entry is invalid or does not indicate a FILE
+    if([perProcRes_table+fileDesc*2+0]!=FILE) then
+        [([PTBR + 2*((userSP-1)/512)]*512)+((userSP-1)%512)]=-1;
+        [PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+9]=0;
+        SP=userSP;
+
+        ireturn;
+    endif;
+
+    alias opnFileTblIdx R6;
+    opnFileTblIdx=[perProcRes_table+fileDesc*2+1];
+
+    //Call the close()
+    multipush(R1,R2,R3,R4,R5,R6);
+
+    R1=CLOSE;
+    R2=opnFileTblIdx;
+    call MOD_3;//file manager
+
+    multipop(R1,R2,R3,R4,R5,R6);
+
+    //Invalidate the Per-Process Resource Table entry
+    [perProcRes_table+fileDesc*2+0]=-1;
+    [perProcRes_table+fileDesc*2+1]=-1;
+
+    [([PTBR + 2*((userSP-1)/512)]*512)+((userSP-1)%512)]=0;
+    [PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+9]=0;
+    SP=userSP;
+
+    ireturn;
+endif;

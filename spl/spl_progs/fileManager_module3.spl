@@ -1,0 +1,195 @@
+alias funcNum R1;
+
+//open
+if(funcNum==OPEN) then
+    alias fileName R2;
+    alias inodeEntry R3;
+    inodeEntry=0;
+    while(inodeEntry<MAX_FILE_NUM) do
+        if([INODE_TABLE+inodeEntry*16+1]==fileName) then
+            break;
+        endif;
+        inodeEntry=inodeEntry+1;
+    endwhile;
+
+    //entry is not found
+    if(inodeEntry==MAX_FILE_NUM) then
+        R0=-1;
+        return;
+    endif;
+
+    multipush(R1,R2,R3);
+
+    R1=ACQUIRE_INODE;
+    R2=inodeEntry;
+    R3=[SYSTEM_STATUS_TABLE+1];
+    call MOD_0;//resource manager
+
+    multipop(R1,R2,R3);
+
+    //locking fails
+    if(R0==-1) then
+        return;
+    endif;
+
+    //If the file is of type EXEC
+    if([INODE_TABLE+inodeEntry*16+0]==EXEC) then
+        multipush(R1,R2,R3);
+
+        R1=RELEASE_INODE;
+        R2=inodeEntry;
+        R3=[SYSTEM_STATUS_TABLE+1];
+        call MOD_0;//resource manager
+
+        multipop(R1,R2,R3);
+
+        R0=-1;
+        return;
+    endif;
+
+    alias opnFileTblIdx R4;
+    opnFileTblIdx=0;
+    //Find a free entry in the Open File Table.
+    while(opnFileTblIdx<MAX_OPENFILE_NUM) do
+        if([OPEN_FILE_TABLE+opnFileTblIdx*4+0]==-1) then
+            break;
+        endif;
+        opnFileTblIdx=opnFileTblIdx+1;
+    endwhile;
+
+    // Reached maximum number of open files in the system
+    if(opnFileTblIdx==MAX_OPENFILE_NUM) then
+        multipush(R1,R2,R3);
+
+        R1=RELEASE_INODE;
+        R2=inodeEntry;
+        R3=[SYSTEM_STATUS_TABLE+1];
+        call MOD_0;//resource manager
+
+        multipop(R1,R2,R3);
+
+        R0=-2;
+        return;
+    endif;
+
+
+    if(fileName=="root") then
+        [OPEN_FILE_TABLE+opnFileTblIdx*4+0]=INODE_ROOT;
+    else   
+        if([FILE_STATUS_TABLE+inodeEntry*4+1]==-1) then
+            [FILE_STATUS_TABLE+inodeEntry*4+1]=1;
+        else
+            [FILE_STATUS_TABLE+inodeEntry*4+1]=[FILE_STATUS_TABLE+inodeEntry*4+1]+1;
+        endif;
+        [OPEN_FILE_TABLE+opnFileTblIdx*4+0]=inodeEntry;
+    endif;
+
+    [OPEN_FILE_TABLE+opnFileTblIdx*4+1]=1;
+    [OPEN_FILE_TABLE+opnFileTblIdx*4+2]=0;
+
+    multipush(R1,R2,R3,R4);
+
+    R1=RELEASE_INODE;
+    R2=inodeEntry;
+    R3=[SYSTEM_STATUS_TABLE+1];
+    call MOD_0;//resource manager
+
+    multipop(R1,R2,R3,R4);
+
+
+    R0=opnFileTblIdx;
+    return;
+endif;
+
+//close
+if(funcNum==CLOSE) then
+    alias opnFileTblIdx R2;
+    alias inodeEntry R3;
+    inodeEntry=[OPEN_FILE_TABLE+opnFileTblIdx*4+0];
+
+    [OPEN_FILE_TABLE+opnFileTblIdx*4+1]=[OPEN_FILE_TABLE+opnFileTblIdx*4+1]-1;
+
+    if([OPEN_FILE_TABLE+opnFileTblIdx*4+1]==0) then
+        [OPEN_FILE_TABLE+opnFileTblIdx*4+0]=-1;
+        [OPEN_FILE_TABLE+opnFileTblIdx*4+1]=-1;
+        [OPEN_FILE_TABLE+opnFileTblIdx*4+2]=-1;
+        if(inodeEntry!=INODE_ROOT) then
+            [FILE_STATUS_TABLE+inodeEntry*4+1]=[FILE_STATUS_TABLE+inodeEntry*4+1]-1;
+        endif;
+
+        if([FILE_STATUS_TABLE+inodeEntry*4+1]==0) then
+            [FILE_STATUS_TABLE+inodeEntry*4+1]=-1;
+        endif;
+    endif;
+
+    return;
+endif;
+
+//buffered read
+if(funcNum==BUFFERED_READ) then
+    alias diskNum R2;
+    alias offset R3;
+    alias wordPutAddr R4;
+
+    alias diskNumCopy R6;
+    diskNumCopy=diskNum;
+
+    alias bufferNum R5;
+    bufferNum=diskNumCopy%MAX_BUFFER;
+
+    //acquire buffer
+    multipush(R1,R2,R3,R4,R5,R6);
+
+    R1=ACQUIRE_BUFFER;
+    R2=bufferNum;
+    R3=[SYSTEM_STATUS_TABLE+1];
+    call MOD_0;//resource manager
+
+    multipop(R1,R2,R3,R4,R5,R6);
+
+    //buffer contains a different disk block
+    if([BUFFER_TABLE+bufferNum*4+0]!=diskNum) then
+        //the buffer contents are dirty
+        if([BUFFER_TABLE+bufferNum*4+1]==1) then
+            multipush(R1,R2,R3,R4,R5,R6);
+
+            R1=DISK_STORE;
+            R2=[SYSTEM_STATUS_TABLE+1];
+            R3=71+bufferNum;
+            R4=[BUFFER_TABLE+bufferNum*4+0];
+            call MOD_4;//device manager
+
+            multipop(R1,R2,R3,R4,R5,R6);
+
+            //Mark the buffer as clean
+            [BUFFER_TABLE+bufferNum*4+1]=0;
+        endif;
+
+        //Load the required disk block and Set the new Disk block number in the Buffer table
+        multipush(R1,R2,R3,R4,R5,R6);
+
+        R1=DISK_LOAD;
+        R2=[SYSTEM_STATUS_TABLE+1];
+        R3=71+bufferNum;
+        R4=diskNumCopy;
+        call MOD_4;//device manager
+
+        multipop(R1,R2,R3,R4,R5,R6);
+
+        [BUFFER_TABLE+bufferNum*4+0]=diskNum;
+    endif;
+
+    [wordPutAddr]=[(71+bufferNum)*512+offset];
+
+    multipush(R1,R2,R3,R4,R5,R6);
+
+    R1=RELEASE_BUFFER;
+    R2=bufferNum;
+    R3=[SYSTEM_STATUS_TABLE+1];
+    call MOD_0;//resource manager
+
+    multipop(R1,R2,R3,R4,R5,R6);
+
+    return;
+
+endif;

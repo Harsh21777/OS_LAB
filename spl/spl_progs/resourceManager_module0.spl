@@ -76,6 +76,7 @@ if(funcNum==ACQUIRE_SEMAPHORE) then
         if([SEMAPHORE_TABLE+(iter*4)+1]==0) then
             break;
         endif;
+        iter=iter+1;
     endwhile;
 
     if(iter==32) then
@@ -155,7 +156,7 @@ if(funcNum==RELEASE_INODE) then
     alias currentPID R3;
 
     //check if locking pid is currentPID
-    if([FILE_STATUS_TABLE+inodeEntry*16+0]!=currentPID) then
+    if([FILE_STATUS_TABLE+inodeEntry*4+0]!=currentPID) then
         retVal=-1;
         return;
     endif;
@@ -176,5 +177,50 @@ if(funcNum==RELEASE_INODE) then
     return;
 endif;
 
+//acquire buffer
+if(funcNum==ACQUIRE_BUFFER) then
+    alias bufferNum R2;
+    alias currentPID R3;
+
+    while([BUFFER_TABLE+bufferNum*4+2]!=-1) do
+        [PROCESS_TABLE+currentPID*16+4]=WAIT_BUFFER;
+        [PROCESS_TABLE+currentPID*16+5]=bufferNum;
+
+        multipush(R1,R2,R3);
+
+        call MOD_5;
+
+        multipop(R1,R2,R3);
+
+    endwhile;
+
+    [BUFFER_TABLE+bufferNum*4+2]=currentPID;
+    return;
+endif;
+
+//release buffer
+if(funcNum==RELEASE_BUFFER) then
+    alias bufferNum R2;
+    alias currentPID R3;
+
+    if(currentPID!=[BUFFER_TABLE+bufferNum*4+2]) then
+        retVal=-1;
+        return;
+    endif;
+
+    [BUFFER_TABLE+bufferNum*4+2]=-1;
+
+    alias iter R4;
+    iter=0;
+    while(iter<MAX_PROC_NUM) do
+        if(([PROCESS_TABLE+iter*16+4]==WAIT_BUFFER) && ([PROCESS_TABLE+iter*16+5]==bufferNum)) then
+            [PROCESS_TABLE+iter*16+4]=READY;
+        endif;
+        iter=iter+1;
+    endwhile;
+
+    retVal=0;
+    return;
+endif;
 
 
