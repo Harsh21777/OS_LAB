@@ -1,17 +1,19 @@
-load --os /home/expos/myexpos/spl/spl_progs/os_startup.xsm
-load --idle /home/expos/myexpos/expl/samples/idle.xsm
-load --init /home/expos/myexpos/expl/samples/assignment/ass17_q1.xsm
-load --module 7 /home/expos/myexpos/spl/spl_progs/boot_module.xsm
-load --module 5 /home/expos/myexpos/spl/spl_progs/scheduler_module.xsm
-load --library /home/expos/myexpos/expl/library.lib
-load --int=10 /home/expos/myexpos/spl/spl_progs/int_10.xsm
-load --int=6 /home/expos/myexpos/spl/spl_progs/int_6.xsm
-load --int=console /home/expos/myexpos/spl/spl_progs/console.xsm
-load --exhandler /home/expos/myexpos/spl/spl_progs/haltProg.xsm
-load --int=timer /home/expos/myexpos/spl/spl_progs/sample_timer.xsm
-load --int=7 /home/expos/myexpos/spl/spl_progs/sample_int7.xsm
-load --module 0 /home/expos/myexpos/spl/spl_progs/resourceManager_module0.xsm
-load --module 4 /home/expos/myexpos/spl/spl_progs/deviceManager_module4.xsm
+load --os ../spl/spl_progs/os_startup.xsm
+load --idle ../expl/samples/idle.xsm
+load --init ../expl/samples/shellV2.xsm
+load --module 7 ../spl/spl_progs/boot_module.xsm
+load --module 5 ../spl/spl_progs/scheduler_module.xsm
+load --module 3 ../spl/spl_progs/fileManager_module3.xsm
+
+load --library ../expl/library.lib
+load --int=10 ../spl/spl_progs/int_10.xsm
+load --int=6 ../spl/spl_progs/int_6.xsm
+load --int=console ../spl/spl_progs/console.xsm
+load --exhandler ../spl/spl_progs/haltProg.xsm
+load --int=timer ../spl/spl_progs/sample_timer.xsm
+load --int=7 ../spl/spl_progs/sample_int7.xsm
+load --module 0 ../spl/spl_progs/resourceManager_module0.xsm
+load --module 4 ../spl/spl_progs/deviceManager_module4.xsm
 load --module 2 ../spl/spl_progs/memoryManager_module2.xsm
 load --int=disk ../spl/spl_progs/disk.xsm
 load --module 1 ../spl/spl_progs/processManager_module1.xsm

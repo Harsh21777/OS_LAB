@@ -121,4 +121,22 @@ if (funcNum == GET_CODE_PAGE) then
     R0 = pageNumber;
     return;
 endif;
+
+//get free block
+if(funcNum==GET_FREE_BLOCK) then
+    alias iter R2;
+    iter=DISK_FREE_AREA;
+
+    while(iter<DISK_SWAP_AREA) do
+        if([DISK_FREE_LIST+iter]==0) then
+            [DISK_FREE_LIST+iter]=1;
+            R0=iter;
+            return;
+        endif;
+        iter=iter+1;
+    endwhile;
+
+    R0=-1;
+    return;
+endif;
     

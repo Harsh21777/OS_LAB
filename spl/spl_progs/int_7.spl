@@ -1,0 +1,202 @@
+//incr no. switches to KERNEL
+[32227]=[32227]+1;
+
+//setting MODE flage to systemcall no. 5 which is for write
+[PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1] * 16 + 9] = INT_WRITE;
+alias userSP R1;
+userSP=SP;
+
+//saving user SP in UPTR
+[PROCESS_TABLE + ( [SYSTEM_STATUS_TABLE + 1] * 16) + 13] = userSP;
+
+//assigning SP to kernel SP
+SP = ([PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 1] * 16) + 11] * 512) - 1;
+
+alias fileDesc R2;
+fileDesc=[([PTBR + 2*((userSP-4)/512)]*512)+((userSP-4)%512)];
+
+alias returnValAddr R8;
+returnValAddr=([PTBR + 2*((userSP-1)/512)]*512)+((userSP-1)%512);
+
+alias process_table R10;
+process_table=PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16;
+
+alias modeFlgAddr R9;
+modeFlgAddr=process_table+9;
+
+if(fileDesc== -2) then
+    //getting pysical addr of arg2 and printing it
+    alias printWord R3;
+    printWord = [([PTBR + 2*((userSP-3)/512)]*512) + ((userSP-3)%512)];
+
+
+    //accessing terminal to write on it
+    multipush(R1,R2,R3,R8,R9,R10);
+
+    R1=TERMINAL_WRITE; 
+    R2=[SYSTEM_STATUS_TABLE+1];
+    R3=printWord;
+    call MOD_4;
+
+    multipop(R1,R2,R3,R8,R9,R10);
+
+else 
+
+    //file descriptor is invalid
+    if(fileDesc>7||fileDesc<0) then
+        [(returnValAddr)]=-1;
+        [modeFlgAddr]=0;
+        SP=userSP;
+
+        ireturn;        
+    endif;
+
+    alias perProcResTableEntry R3;
+    perProcResTableEntry=[process_table+11]*512+RESOURCE_TABLE_OFFSET+fileDesc*2;
+
+    //Per Process Resource Table entry does not indicate a FILE
+    if([perProcResTableEntry+0]!=FILE) then
+        [(returnValAddr)]=-1;
+        [modeFlgAddr]=0;
+        SP=userSP;
+
+        ireturn;   
+    endif;
+
+    alias opnFileTblIdx R4;
+    alias inodeIdx R5;
+    opnFileTblIdx=[perProcResTableEntry+1];
+    inodeIdx=[OPEN_FILE_TABLE+opnFileTblIdx*4+0];
+
+    if(([process_table+3]!=ROOT)&&
+        ([INODE_TABLE+inodeIdx*16+3]!=[process_table+3])&&
+        ([INODE_TABLE+inodeIdx*16+4]==1)) then
+
+        [(returnValAddr)]=-3;
+        [modeFlgAddr]=0;
+        SP=userSP;
+
+        ireturn;
+    endif;
+
+    multipush(R1,R2,R3,R4);
+    multipush(R5,R8,R9,R10);
+
+    R1=ACQUIRE_INODE;
+    R2=inodeIdx;
+    R3=[SYSTEM_STATUS_TABLE+1];
+    call MOD_0; //resource manager
+
+    multipop(R5,R8,R9,R10);
+    multipop(R1,R2,R3,R4);
+
+    //acquire inode fails
+    if(R0==-1) then
+        [(returnValAddr)]=-1;
+        [modeFlgAddr]=0;
+        SP=userSP;
+
+        ireturn;
+    endif;
+
+    alias lSeekPos R6;
+    alias word R7;
+    lSeekPos=OPEN_FILE_TABLE+opnFileTblIdx*4+2;
+    word=[([PTBR + 2*((userSP-3)/512)]*512)+((userSP-3)%512)];
+
+    //Maximum file size of 2048 reached
+    if([lSeekPos]==MAX_FILE_SIZE) then
+        multipush(R1,R2,R3,R4,R5);
+        multipush(R6,R7,R8,R9,R10);
+
+        R1=RELEASE_INODE;
+        R2=inodeIdx;
+        R3=[SYSTEM_STATUS_TABLE+1];
+        call MOD_0; //resource manager
+
+        multipop(R6,R7,R8,R9,R10);
+        multipop(R1,R2,R3,R4,R5);
+
+        [(returnValAddr)]=-2;
+        [modeFlgAddr]=0;
+        SP=userSP;
+
+        ireturn;
+    endif;
+
+    if(([lSeekPos]%512==0)&&([lSeekPos]==[INODE_TABLE+inodeIdx*16+2])) then
+        multipush(R1,R2,R3,R4,R5);
+        multipush(R6,R7,R8,R9,R10);
+
+        R1=GET_FREE_BLOCK;
+        call MOD_2;//memory manager
+
+        multipop(R6,R7,R8,R9,R10);
+        multipop(R1,R2,R3,R4,R5);
+
+        //no free disk block is found
+        if(R0==-1) then
+            multipush(R1,R2,R3,R4,R5);
+            multipush(R6,R7,R8,R9,R10);
+
+            R1=RELEASE_INODE;
+            R2=inodeIdx;
+            R3=[SYSTEM_STATUS_TABLE+1];
+            call MOD_0; //resource manager
+
+            multipop(R6,R7,R8,R9,R10);
+            multipop(R1,R2,R3,R4,R5);
+
+            [(returnValAddr)]=-2;
+            [modeFlgAddr]=0;
+            SP=userSP;
+
+            ireturn;
+        endif;
+
+        //Set the new disk block in the Inode table entry.
+        [INODE_TABLE+inodeIdx*16+8+([lSeekPos]/512)]=R0;
+    endif;
+
+    //Write using buffered read and increment lseek pointer 
+    multipush(R1,R2,R3,R4,R5);
+    multipush(R6,R7,R8,R9,R10);
+
+    R1=BUFFERED_WRITE;
+    R2=[INODE_TABLE+inodeIdx*16+8+([lSeekPos]/512)];//disk blk no.
+    R3=[lSeekPos]%512;//offset
+    R4=word;//word
+    call MOD_3;//file manager
+
+    multipop(R6,R7,R8,R9,R10);
+    multipop(R1,R2,R3,R4,R5);
+
+    //If Lseek equals file size
+    if([lSeekPos]==[INODE_TABLE+inodeIdx*16+2]) then
+        [INODE_TABLE+inodeIdx*16+2]=[INODE_TABLE+inodeIdx*16+2]+1;
+        [ROOT_FILE+inodeIdx*8+1]=[ROOT_FILE+inodeIdx*8+1]+1;
+    endif;
+
+    [OPEN_FILE_TABLE+opnFileTblIdx*4+2]=[OPEN_FILE_TABLE+opnFileTblIdx*4+2]+1;
+
+    multipush(R1,R2,R3,R4,R5);
+    multipush(R6,R7,R8,R9,R10);
+
+    R1=RELEASE_INODE;
+    R2=inodeIdx;
+    R3=[SYSTEM_STATUS_TABLE+1];
+    call MOD_0; //resource manager
+
+    multipop(R6,R7,R8,R9,R10);
+    multipop(R1,R2,R3,R4,R5);   
+endif;
+
+[(returnValAddr)]=0;
+[modeFlgAddr]=0;
+SP=userSP;
+
+ireturn;
+
+
+
+

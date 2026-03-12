@@ -1,0 +1,27 @@
+
+int main(){
+    decl 
+        int temp,tempr,fileDesc;
+        string filename,word;
+    enddecl
+
+    begin
+        temp=exposcall("Read",-1,filename);
+        fileDesc=exposcall("Open",filename);
+        tempr=0;
+
+        if(fileDesc>=0) then
+                tempr=exposcall("Read",fileDesc,word);
+            while(tempr!=-2) do
+                temp=exposcall("Write",-2,word);
+                tempr=exposcall("Read",fileDesc,word);
+            endwhile;
+        else    
+            temp=exposcall("Write",-2,"File Error");
+
+        endif;
+        
+        temp = exposcall("Close", fileDesc);
+        return 0;
+    end
+}

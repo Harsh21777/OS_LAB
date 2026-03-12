@@ -153,3 +153,57 @@ if(funcNum==FREE_PAGE_TABLE) then
     breakpoint;
     return;
 endif;
+
+//kill all process
+if(funcNum==KILL_ALL) then
+    alias currentPID R4;
+
+    alias iter R5;
+    iter=0;
+    //Lock all files
+    while(iter<MAX_FILE_NUM) do
+        if([INODE_TABLE+iter*16+1]!=-1) then
+            multipush(R1,R4,R5);
+
+            R1=ACQUIRE_INODE;
+            R2=iter;
+            R3=currentPID;
+            call MOD_0;//resource manager
+
+            multipop(R1,R4,R5);
+        endif;
+        iter=iter+1;
+    endwhile;
+
+    //exit all processes except idle init and currentPID
+    iter=2;
+    while(iter<MAX_PROC_NUM) do
+        if((iter!=currentPID)&&([PROCESS_TABLE+iter*16+4]!=TERMINATED)) then
+            multipush(R1,R4,R5);
+
+            R1=EXIT_PROCESS;
+            R2=currentPID;
+            call MOD_1;//process manager
+
+            multipop(R1,R4,R5);
+        endif;
+        iter=iter+1;
+    endwhile;
+
+    iter=0;
+    //UnLock all files
+    while(iter<MAX_FILE_NUM) do
+        if([INODE_TABLE+iter*16+1]!=-1) then
+            multipush(R1,R4,R5);
+
+            R1=RELEASE_INODE;
+            R2=iter;
+            R3=currentPID;
+            call MOD_0;//resource manager
+
+            multipop(R1,R4,R5);
+        endif;
+        iter=iter+1;
+    endwhile;
+
+endif;

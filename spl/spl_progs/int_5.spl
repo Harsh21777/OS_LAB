@@ -5,14 +5,23 @@
 alias userSP R1;
 userSP=SP;
 
-[PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+13]=SP;
-SP=[PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+11]*512-1;
+alias process_table R11;
+process_table=PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16;
+
+[process_table+13]=SP;
+SP=[process_table+11]*512-1;
 
 alias sysCallNo R2;
 sysCallNo=[([PTBR + 2*((userSP-5)/512)]*512)+((userSP-5)%512)];
 
 alias perProcRes_table R5;
-perProcRes_table=[PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+11]*512+RESOURCE_TABLE_OFFSET;
+perProcRes_table=[process_table+11]*512+RESOURCE_TABLE_OFFSET;
+
+alias returnValAddr R10;
+returnValAddr=([PTBR + 2*((userSP-1)/512)]*512)+((userSP-1)%512);
+
+alias modeFlgAddr R12;
+modeFlgAddr=process_table+9;
 
 
 if(sysCallNo==INT_OPEN) then
@@ -20,7 +29,7 @@ if(sysCallNo==INT_OPEN) then
     fileName=[([PTBR + 2*((userSP-4)/512)]*512)+((userSP-4)%512)];
 
     //saving MODE flag
-    [PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+9]=INT_OPEN;
+    [modeFlgAddr]=INT_OPEN;
 
     alias perProcResTableEntry R3;
     perProcResTableEntry=0;
@@ -34,25 +43,25 @@ if(sysCallNo==INT_OPEN) then
 
     //no free entry
     if(perProcResTableEntry==8) then
-        [([PTBR + 2*((userSP-1)/512)]*512)+((userSP-1)%512)]=-3;
-        [PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+9]=0;
+        [(returnValAddr)]=-3;
+        [modeFlgAddr]=0;
         SP=userSP;
 
         ireturn;
     endif;
 
     //Call the open() func to get the Open File table entry.
-    multipush(R1,R2,R3,R4,R5);
+    multipush(R1,R2,R3,R4,R5,R10,R11,R12);
 
     R1=OPEN;
     R2=fileName;
     call MOD_3;
 
-    multipop(R1,R2,R3,R4,R5);
+    multipop(R1,R2,R3,R4,R5,R10,R11,R12);
 
     if(R0<0) then
-        [([PTBR + 2*((userSP-1)/512)]*512)+((userSP-1)%512)]=R0;
-        [PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+9]=0;
+        [(returnValAddr)]=R0;
+        [modeFlgAddr]=0;
         SP=userSP;
 
         ireturn;
@@ -62,8 +71,8 @@ if(sysCallNo==INT_OPEN) then
     [perProcRes_table+perProcResTableEntry*2+0]=0;
     [perProcRes_table+perProcResTableEntry*2+1]=R0;
 
-    [([PTBR + 2*((userSP-1)/512)]*512)+((userSP-1)%512)]=perProcResTableEntry;
-    [PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+9]=0;
+    [(returnValAddr)]=perProcResTableEntry;
+    [modeFlgAddr]=0;
     SP=userSP;
 
     ireturn;
@@ -74,12 +83,12 @@ if(sysCallNo==INT_CLOSE) then
     fileDesc=[([PTBR + 2*((userSP-4)/512)]*512)+((userSP-4)%512)];
 
     //saving MODE flag
-    [PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+9]=INT_CLOSE;
+    [modeFlgAddr]=INT_CLOSE;
 
     //file descriptor is invalid
     if(fileDesc<0||fileDesc>7) then
-        [([PTBR + 2*((userSP-1)/512)]*512)+((userSP-1)%512)]=-1;
-        [PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+9]=0;
+        [(returnValAddr)]=-1;
+        [modeFlgAddr]=0;
         SP=userSP;
 
         ireturn;
@@ -87,8 +96,8 @@ if(sysCallNo==INT_CLOSE) then
 
     //entry is invalid or does not indicate a FILE
     if([perProcRes_table+fileDesc*2+0]!=FILE) then
-        [([PTBR + 2*((userSP-1)/512)]*512)+((userSP-1)%512)]=-1;
-        [PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+9]=0;
+        [(returnValAddr)]=-1;
+        [modeFlgAddr]=0;
         SP=userSP;
 
         ireturn;
@@ -98,21 +107,123 @@ if(sysCallNo==INT_CLOSE) then
     opnFileTblIdx=[perProcRes_table+fileDesc*2+1];
 
     //Call the close()
-    multipush(R1,R2,R3,R4,R5,R6);
+    multipush(R1,R2,R3,R4,R5,R6,R10,R11,R12);
 
     R1=CLOSE;
     R2=opnFileTblIdx;
     call MOD_3;//file manager
 
-    multipop(R1,R2,R3,R4,R5,R6);
+    multipop(R1,R2,R3,R4,R5,R6,R10,R11,R12);
 
     //Invalidate the Per-Process Resource Table entry
     [perProcRes_table+fileDesc*2+0]=-1;
     [perProcRes_table+fileDesc*2+1]=-1;
 
-    [([PTBR + 2*((userSP-1)/512)]*512)+((userSP-1)%512)]=0;
-    [PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+9]=0;
+    [(returnValAddr)]=0;
+    [modeFlgAddr]=0;
     SP=userSP;
 
     ireturn;
+endif;
+
+if(sysCallNo==INT_SEEK) then
+    alias fileDesc R3;
+    fileDesc=[([PTBR + 2*((userSP-4)/512)]*512)+((userSP-4)%512)];
+
+    alias offset R4;
+    offset=[([PTBR + 2*((userSP-3)/512)]*512)+((userSP-3)%512)];
+
+    //file descriptor is invalid
+    if(fileDesc<0||fileDesc>7) then
+        [(returnValAddr)]=-1;
+        [modeFlgAddr]=0;
+        SP=userSP;
+
+        ireturn;
+    endif;
+
+    //entry is invalid or does not indicate a FILE
+    if([perProcRes_table+fileDesc*2+0]!=FILE) then
+        [(returnValAddr)]=-1;
+        [modeFlgAddr]=0;
+        SP=userSP;
+
+        ireturn;
+    endif;
+
+    alias opnFileTblIdx R6;
+    alias inodeIdx R7;
+    opnFileTblIdx=[perProcRes_table+fileDesc*2+1];
+    inodeIdx=[OPEN_FILE_TABLE+opnFileTblIdx*4+0];
+
+    multipush(R1,R2,R3,R4,R5,R6,R7,R10,R11,R12);
+
+    R1=ACQUIRE_INODE;
+    R2=inodeIdx;
+    R3=[SYSTEM_STATUS_TABLE+1];
+    call MOD_0; //resource manager
+
+    multipop(R1,R2,R3,R4,R5,R6,R7,R10,R11,R12);
+
+    //acquire inode fails
+    if(R0==-1) then
+        [(returnValAddr)]=-1;
+        [modeFlgAddr]=0;
+        SP=userSP;
+
+        ireturn;
+    endif;
+
+    alias lSeekPos R8;
+    alias fileSize R9;
+    lSeekPos=OPEN_FILE_TABLE+opnFileTblIdx*4+2;
+    
+    if(inodeIdx==INODE_ROOT) then
+        fileSize=480;
+    else
+        fileSize=[INODE_TABLE+inodeIdx*16+2];
+    endif;
+
+    if([lSeekPos]+offset<0) then
+        multipush(R1,R2,R3,R4,R5,R6,R7,R8,R9,R10,R11,R12);
+
+        R1=RELEASE_INODE;
+        R2=inodeIdx;
+        R3=[SYSTEM_STATUS_TABLE+1];
+        call MOD_0; //resource manager
+
+        multipop(R1,R2,R3,R4,R5,R6,R7,R8,R9,R10,R11,R12);
+
+        [(returnValAddr)]=-2;
+        [modeFlgAddr]=0;
+        SP=userSP;
+
+        ireturn;
+    endif;
+
+    if(offset==0) then
+        [lSeekPos]=0;
+    else 
+        if([lSeekPos]+offset>fileSize) then
+            [lSeekPos]=fileSize;
+        else
+            [lSeekPos]=[lSeekPos]+offset;
+        endif;
+    endif;
+
+    multipush(R1,R2,R3,R4,R5,R6,R7,R8,R9,R10,R11,R12);
+
+    R1=RELEASE_INODE;
+    R2=inodeIdx;
+    R3=[SYSTEM_STATUS_TABLE+1];
+    call MOD_0; //resource manager
+
+    multipop(R1,R2,R3,R4,R5,R6,R7,R8,R9,R10,R11,R12);
+
+    [(returnValAddr)]=0;
+    [modeFlgAddr]=0;
+    SP=userSP;
+
+    ireturn;
+
 endif;

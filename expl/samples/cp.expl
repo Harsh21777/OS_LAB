@@ -1,0 +1,34 @@
+int main(){
+    decl 
+        int temp,tempr,fd1,fd2;
+        string f1,f2,word;
+    enddecl
+
+    begin
+        temp=exposcall("Write",-2,"Copy From:");
+        temp=exposcall("Read",-1,f1);
+        temp=exposcall("Write",-2,"Copy To:");
+        temp=exposcall("Read",-1,f2);
+
+        temp=exposcall("Create",f2,1);
+        fd1=exposcall("Open",f1);
+        fd2=exposcall("Open",f2);
+
+        if(fd1>=0) then                
+            while(1==1) do
+                tempr=exposcall("Read",fd1,word);
+                if(tempr==-2) then
+                    break;
+                endif;
+                temp=exposcall("Write",fd2,word);
+            endwhile;
+        else    
+            temp=exposcall("Write",-2,"File Error");
+        endif;
+        
+        temp = exposcall("Close", fd1);
+        temp = exposcall("Close", fd2);
+        temp = exposcall("Write", -2, "Copied");
+        return 0;
+    end
+}
