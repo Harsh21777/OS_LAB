@@ -14,7 +14,7 @@ int main(){
         fd1=exposcall("Open",f1);
         fd2=exposcall("Open",f2);
 
-        if(fd1>=0) then                
+        if((fd1>=0)AND(fd2>=0)) then                
             while(1==1) do
                 tempr=exposcall("Read",fd1,word);
                 if(tempr==-2) then
@@ -22,13 +22,21 @@ int main(){
                 endif;
                 temp=exposcall("Write",fd2,word);
             endwhile;
+            temp = exposcall("Write", -2, "Copied");
         else    
             temp=exposcall("Write",-2,"File Error");
         endif;
+        temp = exposcall("Write", -2, "1");
+        if (fd1 >= 0) then
+            temp = exposcall("Write", -2, "2");
+            temp = exposcall("Close", fd1);
+        endif;
+        if (fd2 >= 0) then
+            temp = exposcall("Write", -2, "3");
+            temp = exposcall("Close", fd2);
+        endif;
         
-        temp = exposcall("Close", fd1);
-        temp = exposcall("Close", fd2);
-        temp = exposcall("Write", -2, "Copied");
+        temp = exposcall("Write", -2, "4");
         return 0;
     end
 }

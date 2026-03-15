@@ -157,6 +157,7 @@ endif;
 //kill all process
 if(funcNum==KILL_ALL) then
     alias currentPID R4;
+    currentPID=R2;
 
     alias iter R5;
     iter=0;
@@ -182,7 +183,7 @@ if(funcNum==KILL_ALL) then
             multipush(R1,R4,R5);
 
             R1=EXIT_PROCESS;
-            R2=currentPID;
+            R2=iter;
             call MOD_1;//process manager
 
             multipop(R1,R4,R5);

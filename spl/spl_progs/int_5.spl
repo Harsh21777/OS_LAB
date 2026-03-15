@@ -1,3 +1,4 @@
+breakpoint;
 //incr no. switches to KERNEL
 [32227]=[32227]+1;
 
@@ -75,6 +76,7 @@ if(sysCallNo==INT_OPEN) then
     [modeFlgAddr]=0;
     SP=userSP;
 
+    breakpoint;
     ireturn;
 endif;
 
@@ -123,10 +125,14 @@ if(sysCallNo==INT_CLOSE) then
     [modeFlgAddr]=0;
     SP=userSP;
 
+    breakpoint;
     ireturn;
 endif;
 
 if(sysCallNo==INT_SEEK) then
+    //saving MODE flag
+    [modeFlgAddr]=INT_SEEK;
+
     alias fileDesc R3;
     fileDesc=[([PTBR + 2*((userSP-4)/512)]*512)+((userSP-4)%512)];
 
@@ -224,6 +230,7 @@ if(sysCallNo==INT_SEEK) then
     [modeFlgAddr]=0;
     SP=userSP;
 
+    
     ireturn;
 
 endif;

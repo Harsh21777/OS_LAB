@@ -1,3 +1,5 @@
+breakpoint;
+
 //incr no. switches to KERNEL
 [32227]=[32227]+1;
 
@@ -93,6 +95,8 @@ if(sysCallNo==INT_CREATE) then
     [returnValAddr]=0;
     [modeFlgAddr]=0;
     SP=userSP;
+    
+    breakpoint;
 
     ireturn;
 endif;
@@ -228,5 +232,6 @@ if(sysCallNo==INT_DELETE) then
     [modeFlgAddr]=0;
     SP=userSP;
 
+    breakpoint;
     ireturn;
 endif;

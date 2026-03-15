@@ -1,3 +1,4 @@
+breakpoint;
 //incr no. switches to KERNEL
 [32227]=[32227]+1;
 
@@ -60,6 +61,7 @@ else
         [modeFlgAddr]=0;
         SP=userSP;
 
+        breakpoint;
         ireturn;   
     endif;
 
@@ -67,6 +69,13 @@ else
     alias inodeIdx R5;
     opnFileTblIdx=[perProcResTableEntry+1];
     inodeIdx=[OPEN_FILE_TABLE+opnFileTblIdx*4+0];
+
+    if (inodeIdx == INODE_ROOT) then
+        [(returnValAddr)]=-1;
+        [modeFlgAddr]=0;
+        SP=userSP;
+        ireturn;
+    endif;
 
     if(([process_table+3]!=ROOT)&&
         ([INODE_TABLE+inodeIdx*16+3]!=[process_table+3])&&
@@ -76,6 +85,7 @@ else
         [modeFlgAddr]=0;
         SP=userSP;
 
+        breakpoint;
         ireturn;
     endif;
 
@@ -96,6 +106,7 @@ else
         [modeFlgAddr]=0;
         SP=userSP;
 
+        breakpoint;
         ireturn;
     endif;
 
@@ -121,6 +132,7 @@ else
         [modeFlgAddr]=0;
         SP=userSP;
 
+        breakpoint;
         ireturn;
     endif;
 
@@ -151,6 +163,7 @@ else
             [modeFlgAddr]=0;
             SP=userSP;
 
+            breakpoint;
             ireturn;
         endif;
 
@@ -195,6 +208,7 @@ endif;
 [modeFlgAddr]=0;
 SP=userSP;
 
+breakpoint;
 ireturn;
 
 

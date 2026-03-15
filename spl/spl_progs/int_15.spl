@@ -1,3 +1,4 @@
+breakpoint;
 //incr no. switches to KERNEL
 [32227]=[32227]+1;
 
@@ -25,51 +26,8 @@ if(([SYSTEM_STATUS_TABLE+1]!=1) && ([PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+3]
     ireturn;
 endif;
 
-//commit changes in user table,inode table,root file etc
-
-multipush(R1);
-
-//inode table and user table
-R1=DISK_STORE;
-R2=[SYSTEM_STATUS_TABLE+1];
-R3=59;
-R4=3;
-call MOD_4;//device manager
-
-R1=DISK_STORE;
-R2=[SYSTEM_STATUS_TABLE+1];
-R3=60;
-R4=4;
-call MOD_4;//device manager
-
-//root file
-R1=DISK_STORE;
-R2=[SYSTEM_STATUS_TABLE+1];
-R3=62;
-R4=5;
-call MOD_4;//device manager
-
-//disk free list
-R1=DISK_STORE;
-R2=[SYSTEM_STATUS_TABLE+1];
-R3=61;
-R4=2;
-call MOD_4;//device manager
-
-multipop(R1);
-
-//Invoke Kill All function
 alias currentPID R2;
 currentPID=[SYSTEM_STATUS_TABLE+1];
-
-multipush(R1,R2);
-
-R1=KILL_ALL;
-R2=currentPID;
-call MOD_1;//Process manager
-
-multipop(R1,R2);
-
 alias iter R3;
 iter=0;
 
@@ -88,6 +46,60 @@ while(iter<4) do
     iter=iter+1;
 endwhile;
 
+//commit changes in user table,inode table,root file etc
 
+multipush(R1,R2,R3);
 
+//inode table and user table
+R1=DISK_STORE;
+R2=[SYSTEM_STATUS_TABLE+1];
+R3=59;
+R4=3;
+call MOD_4;//device manager
+
+multipop(R1,R2,R3);
+
+multipush(R1,R2,R3);
+
+R1=DISK_STORE;
+R2=[SYSTEM_STATUS_TABLE+1];
+R3=60;
+R4=4;
+call MOD_4;//device manager
+
+multipop(R1,R2,R3);
+
+multipush(R1,R2,R3);
+
+//root file
+R1=DISK_STORE;
+R2=[SYSTEM_STATUS_TABLE+1];
+R3=62;
+R4=5;
+call MOD_4;//device manager
+
+multipop(R1,R2,R3);
+
+multipush(R1,R2,R3);
+
+//disk free list
+R1=DISK_STORE;
+R2=[SYSTEM_STATUS_TABLE+1];
+R3=61;
+R4=2;
+call MOD_4;//device manager
+
+multipop(R1,R2,R3);
+
+//Invoke Kill All function
+
+multipush(R1,R2,R3);
+
+R1=KILL_ALL;
+R2=currentPID;
+call MOD_1;//Process manager
+
+multipop(R1,R2,R3);
+
+breakpoint;
 halt;
