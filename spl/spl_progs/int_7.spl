@@ -79,7 +79,7 @@ else
 
     if(([process_table+3]!=ROOT)&&
         ([INODE_TABLE+inodeIdx*16+3]!=[process_table+3])&&
-        ([INODE_TABLE+inodeIdx*16+4]==1)) then
+        ([INODE_TABLE+inodeIdx*16+4]==0)) then
 
         [(returnValAddr)]=-3;
         [modeFlgAddr]=0;
