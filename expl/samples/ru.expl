@@ -1,0 +1,50 @@
+int main(){
+    decl 
+        int temp,tempr,fileDesc;
+        string filename,username,fileUname,word;
+    enddecl
+
+    begin
+        tempr=exposcall("Write",-2,"Enter UserName:");
+        tempr=exposcall("Read",-1,username);
+        fileDesc=exposcall("Open","root");
+        tempr=0;
+
+        if(fileDesc>=0) then                
+            while(1==1) do
+                tempr=exposcall("Read",fileDesc,filename);
+                if(tempr==-2) then
+                    break;
+                endif;
+                if(filename=="-1") then
+                    temp=exposcall("Seek",fileDesc,7);
+                    continue;
+                endif;
+                temp=exposcall("Seek",fileDesc,2);
+                tempr=exposcall("Read",fileDesc,fileUname);
+                if(username==fileUname) then
+                    temp=exposcall("Delete",filename);
+                    if(temp ==0) then
+                        temp = exposcall("Write", -2, "Deleted");
+                    else
+                        if(temp == -1) then
+                            temp = exposcall("Write", -2, "No permission");
+                        else
+                            if(temp == -2) then
+                                temp = exposcall("Write", -2, "File is open");
+                            endif;
+                        endif;
+                    endif;
+                endif;
+
+                temp=exposcall("Seek",fileDesc,4);              
+            endwhile;
+
+        else    
+            temp=exposcall("Write",-2,"File Error");
+        endif;
+        
+        temp = exposcall("Close", fileDesc);
+        return 0;
+    end
+}

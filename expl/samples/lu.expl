@@ -1,0 +1,25 @@
+int main(){
+    decl 
+        int temp, userid;
+        int username;
+    enddecl
+
+    begin
+        userid = 0;
+        
+        // Loop through all 16 possible User IDs
+        while(userid < 16) do
+            // Ask the OS for the username of this ID
+            username = exposcall("Getuname", userid);
+            
+            // If the user exists (it doesn't return "-1")
+            if(username != -1) then
+                temp = exposcall("Write", -2, username);
+            endif;
+            
+            userid = userid + 1;
+        endwhile;
+        
+        return 0;
+    end
+}

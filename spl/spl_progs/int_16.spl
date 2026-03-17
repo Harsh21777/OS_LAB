@@ -1,0 +1,274 @@
+breakpoint;
+//incr no. switches to KERNEL
+[32227]=[32227]+1;
+
+//saving userStack and setting kernelStack
+alias userSP R1;
+userSP=SP;
+
+alias currentPID R9;
+currentPID=[SYSTEM_STATUS_TABLE+1];
+
+alias process_table R7;
+process_table=PROCESS_TABLE+currentPID*16;
+
+[process_table+13]=SP;
+SP=[process_table+11]*512-1;
+
+alias sysCallNo R2;
+sysCallNo=[([PTBR + 2*((userSP-5)/512)]*512)+((userSP-5)%512)];
+
+alias returnValAddr R6;
+returnValAddr=([PTBR + 2*((userSP-1)/512)]*512)+((userSP-1)%512);
+
+alias modeFlgAddr R8;
+modeFlgAddr=process_table+9;
+
+
+if(sysCallNo==INT_NEWUSR) then
+    //change MODE flg
+    [modeFlgAddr]=INT_NEWUSR;
+
+    alias userName R3;
+    alias password R4;
+    userName=[([PTBR + 2*((userSP-4)/512)]*512)+((userSP-4)%512)];
+    password=[([PTBR + 2*((userSP-3)/512)]*512)+((userSP-3)%512)];
+
+    if(([SYSTEM_STATUS_TABLE+0]!=ROOT) || (currentPID!=SHELL_PROCESS)) then
+        [returnValAddr]=-2;
+        [modeFlgAddr]=0;
+        SP=userSP;
+
+        ireturn;
+    endif;
+
+    alias userId R5;
+    userId=1;
+    while(userId<MAX_USER_NUM) do
+        //user already exists
+        if([USER_TABLE+userId*2+0]==userName) then
+            [returnValAddr]=-1;
+            [modeFlgAddr]=0;
+            SP=userSP;
+
+            ireturn;
+        endif;
+        userId=userId+1;
+    endwhile; 
+
+    userId=1;
+    while(userId<MAX_USER_NUM) do
+        //user already exists
+        if([USER_TABLE+userId*2+0]==-1) then
+            break;
+        endif;
+        userId=userId+1;
+    endwhile;
+
+    //no free entry is found
+    if(userId==MAX_USER_NUM) then
+        [returnValAddr]=-3;
+        [modeFlgAddr]=0;
+        SP=userSP;
+
+        ireturn;
+    endif;
+
+    //Set User Table entry
+    encrypt password;
+
+    [USER_TABLE+userId*2+0]=userName;
+    [USER_TABLE+userId*2+1]=password;
+
+    [returnValAddr]=0;
+    [modeFlgAddr]=0;
+    SP=userSP;
+
+    breakpoint;
+    ireturn;
+endif;
+
+if(sysCallNo==INT_REMUSR) then
+    //change MODE flg
+    [modeFlgAddr]=INT_REMUSR;
+
+    alias userName R3;
+    userName=[([PTBR + 2*((userSP-4)/512)]*512)+((userSP-4)%512)];
+
+    if(([SYSTEM_STATUS_TABLE+0]!=ROOT) || (currentPID!=SHELL_PROCESS)) then
+        [returnValAddr]=-2;
+        [modeFlgAddr]=0;
+        SP=userSP;
+
+        ireturn;
+    endif;
+
+    //user to be removed is the "root" or "kernel"
+    if((userName=="root") || (userName=="kernel")) then
+        [returnValAddr]=-2;
+        [modeFlgAddr]=0;
+        SP=userSP;
+
+        ireturn;
+    endif;
+
+    alias userId R4;
+    userId=0;
+    //find the entry curresponding to the user
+    while(userId<MAX_USER_NUM) do
+        if([USER_TABLE+userId*2+0]==userName) then  
+            break;
+        endif;
+        userId=userId+1;
+    endwhile;
+
+    if(userId==MAX_USER_NUM) then
+        [returnValAddr]=-1;
+        [modeFlgAddr]=0;
+        SP=userSP;
+
+        ireturn;
+    endif;
+
+    alias rootEntry R5;
+    rootEntry=0;
+    while(rootEntry<MAX_FILE_NUM) do
+        //there are files of the user present on disk
+        if([ROOT_FILE+rootEntry*8+3]==userName) then
+            [returnValAddr]=-3;
+            [modeFlgAddr]=0;
+            SP=userSP;
+
+            ireturn;
+        endif;
+        rootEntry=rootEntry+1;
+    endwhile;
+
+    //Invalidate the entry
+    [USER_TABLE+userId*2+0]=-1;
+    [USER_TABLE+userId*2+1]=-1;
+
+    [returnValAddr]=0;
+    [modeFlgAddr]=0;
+    SP=userSP;
+
+    breakpoint;
+    ireturn;
+endif;
+
+if(sysCallNo==INT_SETPWD) then
+    //change MODE flg
+    [modeFlgAddr]=INT_SETPWD;
+
+    alias userName R3;
+    alias password R4;
+    userName=[([PTBR + 2*((userSP-4)/512)]*512)+((userSP-4)%512)];
+    password=[([PTBR + 2*((userSP-3)/512)]*512)+((userSP-3)%512)];
+
+    //current process is not the shell
+    if(currentPID!=SHELL_PROCESS) then
+        [returnValAddr]=-1;
+        [modeFlgAddr]=0;
+        SP=userSP;
+
+        ireturn;
+    endif;
+
+    alias userId R5;
+    userId=0;
+    //find the entry curresponding to the user
+    while(userId<MAX_USER_NUM) do
+        if([USER_TABLE+userId*2+0]==userName) then  
+            break;
+        endif;
+        userId=userId+1;
+    endwhile;
+
+    if(userId==MAX_USER_NUM) then
+        [returnValAddr]=-2;
+        [modeFlgAddr]=0;
+        SP=userSP;
+
+        ireturn;
+    endif;
+
+    if([process_table+3]!=userId) then
+        if([SYSTEM_STATUS_TABLE+0]!=ROOT) then
+            [returnValAddr]=-1;
+            [modeFlgAddr]=0;
+            SP=userSP;
+
+            ireturn;
+        endif;
+    endif;
+
+    encrypt password;
+    [USER_TABLE+userId*2+1]=password;
+
+    [returnValAddr]=0;
+    [modeFlgAddr]=0;
+    SP=userSP;
+
+    breakpoint;
+    ireturn;
+endif;
+
+if(sysCallNo==INT_GETUID) then  
+    //change MODE flg
+    [modeFlgAddr]=INT_GETUID;
+
+    alias userName R3;
+    userName=[([PTBR + 2*((userSP-4)/512)]*512)+((userSP-4)%512)];
+
+    alias userId R4;
+    userId=0;
+    //find the entry curresponding to the user
+    while(userId<MAX_USER_NUM) do
+        if([USER_TABLE+userId*2+0]==userName) then  
+            [returnValAddr]=userId;
+            [modeFlgAddr]=0;
+            SP=userSP;
+            
+            breakpoint;
+            ireturn;
+        endif;
+        userId=userId+1;
+    endwhile;
+
+    [returnValAddr]=-1;
+    [modeFlgAddr]=0;
+    SP=userSP;
+
+    breakpoint;
+    ireturn;
+endif;
+
+if(sysCallNo==INT_GETUNAME) then
+    //change MODE flg
+    [modeFlgAddr]=INT_GETUNAME;
+
+    alias userId R3;
+    userId=[([PTBR + 2*((userSP-4)/512)]*512)+((userSP-4)%512)];
+
+    if((userId>15) || (userId<0)) then
+        [returnValAddr]=-1;
+        [modeFlgAddr]=0;
+        SP=userSP;
+
+        ireturn;
+    endif;
+
+    if([USER_TABLE+userId*2+0]==-1) then
+        [returnValAddr]=-1;
+        [modeFlgAddr]=0;
+        SP=userSP;
+
+        ireturn;
+    endif;
+
+    [returnValAddr]=[USER_TABLE+userId*2+0];
+    [modeFlgAddr]=0;
+    SP=userSP;
+
+    ireturn;
+endif;

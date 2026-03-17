@@ -1,0 +1,57 @@
+breakpoint;
+//incr no. switches to KERNEL
+[32227]=[32227]+1;
+
+//saving userStack and setting kernelStack
+alias userSP R1;
+userSP=SP;
+
+[PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+13]=SP;
+SP=[PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+11]*512-1;
+
+//change MODE flg
+[PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+9]=INT_LOGOUT;
+
+//current process is not the shell
+if([SYSTEM_STATUS_TABLE+1]!=SHELL_PROCESS) then 
+    [([PTBR + 2*((userSP-1)/512)]*512)+((userSP-1)%512)]=-1;
+    [PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+9]=0;
+    SP=userSP;
+
+    ireturn;
+endif;
+
+multipush(R1);
+
+R1=KILL_ALL;
+R2=[SYSTEM_STATUS_TABLE+1];
+call MOD_1;//process manager
+
+multipop(R1);
+
+[PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+4]=TERMINATED;
+
+//Shell should be set ready to run when the next user logs in
+alias entryPointIP R2;
+entryPointIP=[[PTBR+4*2]*512+1];
+
+[[PTBR+16]*512+0]=[[PTBR+8]*512+1];
+[PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+13]=8*512;
+
+//Wake up the Login process
+[PROCESS_TABLE+LOGIN_PROCESS*16+4]=READY;
+
+//reset the CURRENT_USER_ID field back to 0 (kernel)
+[SYSTEM_STATUS_TABLE+0]=0;
+
+multipush(R1,R2);
+
+call MOD_5;//scheduler
+
+multipop(R1,R2);
+
+SP = userSP;
+[PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1] * 16 + 9] = 0;
+ireturn;
+
+

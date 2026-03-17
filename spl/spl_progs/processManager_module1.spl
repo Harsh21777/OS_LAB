@@ -207,4 +207,6 @@ if(funcNum==KILL_ALL) then
         iter=iter+1;
     endwhile;
 
+    return;
+
 endif;
