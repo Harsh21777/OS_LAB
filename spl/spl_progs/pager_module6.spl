@@ -1,0 +1,226 @@
+breakpoint;
+alias funcNum R1;
+alias currentPID R2;
+alias iterPID R3;
+alias swapPID R4;
+
+
+if(funcNum==SWAP_OUT) then
+    swapPID=-1;
+
+    alias waitSemPID R10;
+    alias maxTickPID R11;
+    alias maxTICK R12;
+    waitSemPID = -1;
+    maxTickPID = -1;
+    maxTICK = -1;
+
+    alias counter R5;
+    counter=3;
+    //find a non-swapped process that is in the WAIT_PROCESS
+    while (counter < MAX_PROC_NUM - 1) do
+        if ([PROCESS_TABLE + counter*16 + 6] == 0) then
+            if ([PROCESS_TABLE + counter*16 + 4] == WAIT_PROCESS) then
+                swapPID = counter;
+                break;
+            endif;
+            if (waitSemPID == -1 && [PROCESS_TABLE + counter*16 + 4] == WAIT_SEMAPHORE) then
+                waitSemPID = counter;
+            endif;
+
+            alias tempPCB R13;
+            tempPCB = PROCESS_TABLE + counter*16;
+            if ([tempPCB+4] != TERMINATED && [tempPCB+4] != ALLOCATED && [tempPCB+4] != RUNNING) then
+                if ([tempPCB] > maxTICK) then
+                    maxTICK = [tempPCB];
+                    maxTickPID = counter;
+                endif;
+            endif;
+        endif;
+        counter = counter + 1;
+    endwhile;
+
+    if (swapPID == -1) then
+        if (waitSemPID != -1) then
+            swapPID = waitSemPID;
+        else
+            swapPID = maxTickPID;
+        endif;
+    endif;
+
+    if(swapPID==-1) then
+        [SYSTEM_STATUS_TABLE+5]=0;
+        R0=-1;
+        breakpoint;
+        return;
+    endif;
+
+    [PROCESS_TABLE+swapPID*16+0]=0;
+
+    
+    alias pageTable_swapPID R6;
+    pageTable_swapPID=PAGE_TABLE_BASE+swapPID*20;
+    counter=2;
+
+    //Invalidate the Page table entry correpsonding to the page table pages
+    while(counter<10) do
+        alias pageNumber R7;
+        pageNumber = pageTable_swapPID + counter*2;
+        if((counter<=3)||(counter>=8)) then
+            if([pageNumber]!=-1 && [MEMORY_FREE_LIST+[pageNumber]]==1) then
+
+                multipush (R1,R2,R3,R4,R5,R6,R7);
+
+                R1 = GET_SWAP_BLOCK;
+                call MOD_2; //memory manager
+                
+                multipop (R1,R2,R3,R4,R5,R6,R7);
+
+                [DISK_MAP_TABLE + swapPID*10 + counter] = R0;
+
+                multipush (R1,R2,R3,R4,R5,R6,R7);
+                
+                R1 = DISK_STORE;
+                R2 = SWAPPER_DAEMON;
+                R3 = [pageNumber];
+                R4 = R0;
+                call MOD_4; //device manager
+
+                multipop (R1,R2,R3,R4,R5,R6,R7);
+
+
+
+                multipush(R1,R2,R3,R4,R5,R6,R7);
+
+                R1=RELEASE_PAGE;
+                R2=[pageNumber];
+                call MOD_2; //memory manager
+
+                multipop(R1,R2,R3,R4,R5,R6,R7);
+
+                [pageNumber]=-1;
+                [pageNumber+1]="0000";
+
+            endif;
+            counter=counter+1;
+            continue;
+        endif;
+
+
+
+        if([pageNumber]!=-1) then
+            multipush(R1,R2,R3,R4,R5,R6,R7);
+
+            R1=RELEASE_PAGE;
+            R2=[pageNumber];
+            call MOD_2; //memory manager
+
+            multipop(R1,R2,R3,R4,R5,R6,R7);
+        endif;
+
+        [pageNumber]=-1;
+        [pageNumber+1]="0000";
+
+        counter=counter+1;
+    endwhile;
+
+    //Set the SWAP_FLAG field
+    [PROCESS_TABLE+swapPID*16+6]=1;
+
+    //increment the SWAP_COUNT and reset the PAGING_STATUS
+    [SYSTEM_STATUS_TABLE+4]=[SYSTEM_STATUS_TABLE+4]+1;
+    [SYSTEM_STATUS_TABLE+5]=0;
+
+    breakpoint;
+    return;
+endif;
+
+
+
+if(funcNum==SWAP_IN) then
+
+    iterPID=0;
+    swapPID=-1;
+    alias highestTick R5;
+    highestTick=-1;
+
+    while(iterPID<MAX_PROC_NUM) do
+        alias temp_table R6;
+        temp_table=PROCESS_TABLE+iterPID*16;
+        if(([temp_table+6]==1)&&([temp_table+4]==READY)) then
+            if([temp_table+0]>highestTick) then
+                highestTick=[temp_table+0];
+                swapPID=iterPID;
+            endif;
+        endif;
+        iterPID=iterPID+1;
+    endwhile;
+
+    if(swapPID==-1) then
+        [SYSTEM_STATUS_TABLE+5]=0;
+        breakpoint;
+        return;
+    endif;
+
+    //reset tick field
+    [PROCESS_TABLE+swapPID*16+0]=0;
+
+    alias counter R6;
+    alias pageTable_swapPID R7;
+    pageTable_swapPID=PAGE_TABLE_BASE+swapPID*20;
+    counter=2;
+
+    while(counter<10) do
+        if(counter<4 || counter>=8) then
+            alias swap_block R8;
+            swap_block=DISK_MAP_TABLE+swapPID*10+counter;
+            if([swap_block]!=-1) then
+                multipush(R1,R2,R3,R4,R5,R6,R7,R8);
+
+                R1=GET_FREE_PAGE;
+                call MOD_2; //memory manager
+
+                multipop(R1,R2,R3,R4,R5,R6,R7,R8);
+
+                [pageTable_swapPID+counter*2]=R0;
+                [pageTable_swapPID+counter*2+1]="0110";
+
+                multipush(R1,R2,R3,R4,R5,R6,R7,R8);
+
+                R1=DISK_LOAD;
+                R2=SWAPPER_DAEMON;
+                R3=R0;
+                R4=[swap_block];
+                call MOD_4; //device manager
+
+                multipop(R1,R2,R3,R4,R5,R6,R7,R8);
+
+                multipush(R1,R2,R3,R4,R5,R6,R7,R8);
+
+                R1=RELEASE_BLOCK;
+                R2=[swap_block];
+                R3=SWAPPER_DAEMON;
+                call MOD_2; //memory manager
+
+                multipop(R1,R2,R3,R4,R5,R6,R7,R8);
+
+                //Invalidate the Disk Map Table entry
+                [swap_block]=-1;
+
+            endif;
+        endif;
+
+        counter=counter+1;
+    endwhile;
+
+    //Set the SWAP_FLAG field
+    [PROCESS_TABLE+swapPID*16+6]=0;
+
+    //decrement the SWAP_COUNT and reset the PAGING_STATUS
+    [SYSTEM_STATUS_TABLE+4]=[SYSTEM_STATUS_TABLE+4]-1;
+    [SYSTEM_STATUS_TABLE+5]=0;
+
+    breakpoint;
+    return;
+
+endif;

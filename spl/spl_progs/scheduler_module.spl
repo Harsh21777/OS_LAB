@@ -15,26 +15,41 @@ process_table_entry=PROCESS_TABLE+currentPID*16;
 [process_table_entry+14]=PTBR;
 [process_table_entry+15]=PTLR;
 
-
 alias tempPID R3;
 alias newPID R4;
 newPID=0;
-tempPID=(currentPID+1)%16;
-while(tempPID!=currentPID) do
+if([SYSTEM_STATUS_TABLE+5]!=0) then
+    //Paging is ongoing
+    if([PROCESS_TABLE+SWAPPER_DAEMON*16+4]==WAIT_DISK) then
+        newPID=IDLE_PROCESS;
+    else
+        newPID=SWAPPER_DAEMON;
+    endif;
 
-    if (tempPID == 0) then
-        tempPID = (tempPID + 1) % 16;
-        continue;
-    endif;
-    
-    if([PROCESS_TABLE+(tempPID*16)+4]==CREATED ||[PROCESS_TABLE+(tempPID*16)+4]==READY) then
-        newPID=tempPID;
-        break;
-    endif;
-     
-    tempPID=(tempPID+1)%16;
-    
-endwhile;
+else 
+    tempPID=(currentPID+1)%16;
+    while(tempPID!=currentPID) do
+
+        if (tempPID == 0) then
+            tempPID = (tempPID + 1) % 16;
+            continue;
+        endif;
+        
+        if([PROCESS_TABLE+(tempPID*16)+4]==CREATED ||[PROCESS_TABLE+(tempPID*16)+4]==READY) then
+            if([PROCESS_TABLE+tempPID*16+6]==0) then
+                newPID=tempPID;
+                break;
+            endif;  
+
+        endif;
+        
+        tempPID=(tempPID+1)%16;
+        
+    endwhile;
+
+endif;
+
+
 
 alias new_processs_table_entry R5;
 new_processs_table_entry = PROCESS_TABLE+newPID*16;

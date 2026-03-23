@@ -10,24 +10,53 @@ SP = [PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 1] * 16) + 11] * 512 - 1;
 //backup reg context of current going process
 backup;
 
-alias currentPID R0;
-currentPID=[SYSTEM_STATUS_TABLE +1];
 
-alias process_table_entry R1;
-process_table_entry=PROCESS_TABLE+currentPID*16;
-[process_table_entry+4]=READY;
-[process_table_entry+0]=[process_table_entry+0]+1;
+if([SYSTEM_STATUS_TABLE+5]!=0) then 
+    //swapping is initiated
+    if([SYSTEM_STATUS_TABLE+1]==SWAPPER_DAEMON) then
 
+        R1=[SYSTEM_STATUS_TABLE+5];  
+        R2=[SYSTEM_STATUS_TABLE+1];      
+        call MOD_6; //pager 
+
+    endif;
+else
+    //Swapping is not on now.  
+    //Check whether it must be initiated 
+    if([SYSTEM_STATUS_TABLE+2]<MEM_LOW) then
+        [SYSTEM_STATUS_TABLE+5]=SWAP_OUT;
+    else
+        //there are swapped out processes
+        if([SYSTEM_STATUS_TABLE+4]>0) then
+            alias iterPID R1;
+            iterPID=1;
+            while(iterPID<MAX_PROC_NUM) do
+                //swap flage is 1
+                if([PROCESS_TABLE+iterPID*16+6]==1) then
+
+                    if(([PROCESS_TABLE+iterPID*16+0]>MAX_TICK)||([SYSTEM_STATUS_TABLE+2]>MEM_HIGH)) then
+                        [SYSTEM_STATUS_TABLE+5]=SWAP_IN;
+                        break;
+                    endif;
+
+                endif;
+                iterPID=iterPID+1;
+            endwhile;
+        endif;
+
+    endif;
+endif;
+
+
+[PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+4]=READY;
 
 
 //Loop through the process table entires and increment the TICK field of each process.
-alias iterPID R2;
-iterPID=currentPID+1;
-while(iterPID!=currentPID) do
-    alias temp_entry R3;
-    temp_entry=PROCESS_TABLE+iterPID*16;
-    [temp_entry+0]=[temp_entry+0]+1;
-    iterPID=(iterPID+1)%16;
+alias iterPID R1;
+iterPID=0;
+while(iterPID<MAX_PROC_NUM) do
+    [PROCESS_TABLE+iterPID*16+0]=[PROCESS_TABLE+iterPID*16+0]+1;
+    iterPID=iterPID+1;
 endwhile;
 
 call MOD_5;
@@ -36,5 +65,6 @@ restore;
 
 [PROCESS_TABLE + 16 * [SYSTEM_STATUS_TABLE + 1] + 12] = 0;
 SP = [PROCESS_TABLE + 16 * [SYSTEM_STATUS_TABLE + 1] + 13];
+[PROCESS_TABLE + 16 * [SYSTEM_STATUS_TABLE + 1] + 9] = 0;
 
 ireturn;

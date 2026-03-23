@@ -42,18 +42,19 @@ else
     if((EPN>3)&&(EPN<8)) then
         alias codeBlkNum R2;
         codeBlkNum=[DISK_MAP_TABLE+[SYSTEM_STATUS_TABLE+1]*10+EPN];//2,3,4,5 are for code blk in DISK_MAP_TABLE
+        alias epnCopy R3;
+        epnCopy=EPN;
 
-        multipush(R0, R1, R2);
+        multipush(R1,R2,R3);
 
         R1=GET_CODE_PAGE;
         R2=codeBlkNum;
         
         call MOD_2;//get code page
 
-        [PAGE_TABLE_BASE+[SYSTEM_STATUS_TABLE+1]*20+2*EPN]=R0;
-        [PAGE_TABLE_BASE+[SYSTEM_STATUS_TABLE+1]*20+2*EPN+1]="1100";
-
-        multipop(R0,R1,R2);
+        multipop(R1,R2,R3);
+        [PAGE_TABLE_BASE+[SYSTEM_STATUS_TABLE+1]*20+2*epnCopy]=R0;
+        [PAGE_TABLE_BASE+[SYSTEM_STATUS_TABLE+1]*20+2*epnCopy+1]="1100";
     endif;
 
     if((EPN>1)&&(EPN<4)) then

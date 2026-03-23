@@ -96,9 +96,11 @@ loadi(47,60);
 loadi(48,61);
 loadi(49,62);
 
-//load module 5 (scheduler)
-loadi(50,63);
-loadi(51,64);
+//scheduler loaded in os startup code
+
+//load module 6 (pager)
+loadi(52,65);
+loadi(53,66);
 
 //load inode table
 loadi(59,3);
@@ -158,6 +160,7 @@ PTLR = 10;
 alias shell_procTable R1;
 shell_procTable=PROCESS_TABLE+SHELL_PROCESS*16;
 
+[shell_procTable+0]=0;
 //user Area page for init process
 [shell_procTable+ 11] = 80;
 //setting PID & PPID for 2st process 
@@ -229,6 +232,7 @@ PTLR = 10;
 alias login_procTable R3;
 login_procTable= PROCESS_TABLE+ LOGIN_PROCESS*16;
 
+[login_procTable+0]=0;
 //user Area page for init process
 [login_procTable+ 11] = 77;
 //setting PID for 1st process 
@@ -245,11 +249,6 @@ login_procTable= PROCESS_TABLE+ LOGIN_PROCESS*16;
 [login_procTable+ 14] = PTBR;
 [login_procTable+ 15] = 10;
 
-iter=2;
-while(iter<MAX_PROC_NUM) do
-    [PROCESS_TABLE+iter*16+4]=TERMINATED;
-    iter=iter+1;
-endwhile;
 
 // per-process resource table for init
 iter = 0;
@@ -260,21 +259,23 @@ endwhile;
 
 //seting MEMORY_FREE_LIST
 iter=0;
-while(iter<=80) do
-    [MEMORY_FREE_LIST+iter]=1;
+while(iter<=NUM_MEM_PAGES) do
+    if(iter<=82) then
+        [MEMORY_FREE_LIST+iter]=1;   
+    else
+        [MEMORY_FREE_LIST+iter]=0;
+    endif;
     iter=iter+1;
 endwhile;
 
-while(iter<NUM_MEM_PAGES) do
-    [MEMORY_FREE_LIST+iter]=0;
-    iter=iter+1;
-endwhile;
-
-//initialise SEMAPHORE_TABLE
+//initialise SEMAPHORE_TABLE & open file table
 iter=0;
 while(iter<32) do 
     [SEMAPHORE_TABLE+(iter*4)]=-1;
     [SEMAPHORE_TABLE+(iter*4)+1]=0;
+
+    [OPEN_FILE_TABLE+iter*4+0]=-1;
+    [OPEN_FILE_TABLE+iter*4+1]=0;
 
     iter=iter+1;
 endwhile;
@@ -290,19 +291,20 @@ endwhile;
 //initializing buffer table
 iter=0;
 while(iter<MAX_BUFFER) do
-    [BUFFER_TABLE+iter*4+0]=-1;
-    [BUFFER_TABLE+iter*4+1]=0;
-    [BUFFER_TABLE+iter*4+2]=-1;
+    alias buffTable R4;
+    buffTable=BUFFER_TABLE+iter*4;
+    [buffTable+0]=-1;
+    [buffTable+1]=0;
+    [buffTable+2]=-1;
 
     iter=iter+1;
 endwhile;
 
-//initialise open file table
-iter=0;
-while(iter<MAX_OPENFILE_NUM) do
-    [OPEN_FILE_TABLE+iter*4+0]=-1;
-    [OPEN_FILE_TABLE+iter*4+1]=0;
 
+iter=3;
+while(iter<MAX_PROC_NUM) do
+    [PROCESS_TABLE+iter*16+4]=TERMINATED;
+    [PROCESS_TABLE+iter*16+0]=0;
     iter=iter+1;
 endwhile;
 
@@ -314,7 +316,12 @@ endwhile;
 
 //initialize the fields WAIT_MEM_COUNT to 0 and MEM_FREE_COUNT to number of free pages
 [SYSTEM_STATUS_TABLE+3]=0;
-[SYSTEM_STATUS_TABLE+2]=47;
+[SYSTEM_STATUS_TABLE+2]=45;
+
+//Initialize the SWAPPED_COUNT field and PAGING_STATUS field
+[SYSTEM_STATUS_TABLE+4]=0;
+[SYSTEM_STATUS_TABLE+5]=0;
+
 
 //for assg 22 q2&q3
 //allocating unused memory in root file i.e. page no. 62 from 32224-32255
