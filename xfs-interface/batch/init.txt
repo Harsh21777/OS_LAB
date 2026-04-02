@@ -34,3 +34,10 @@ load --exec ../expl/samples/ls.xsm
 load --exec ../expl/samples/lu.xsm
 load --exec ../expl/samples/rm.xsm
 load --exec ../expl/samples/ru.xsm
+load --exec ../expl/samples/assignment/a27Q1.xsm
+load --exec ../expl/samples/assignment/a27Q2.xsm
+load --exec ../expl/samples/assignment/a27Q3.xsm
+load --exec ../expl/samples/assignment/a27Q4.xsm
+load --exec ../expl/samples/assignment/a27Q5.xsm
+load --exec ../expl/samples/assignment/pgm1.xsm
+load --exec ../expl/samples/assignment/pgm2.xsm

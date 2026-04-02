@@ -11,7 +11,7 @@ loadi(69,11);
 //loadi(70,12);
 
 //set stack pointer to userAreaPage
-SP = 82*512-1;
+SP = 76*512-1;
 call BOOT_MODULE;
 
 
