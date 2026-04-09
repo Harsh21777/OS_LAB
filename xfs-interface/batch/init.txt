@@ -17,6 +17,8 @@ load --int=12 ../spl/spl_progs/int_12.xsm
 load --int=13 ../spl/spl_progs/int_13.xsm
 load --int=14 ../spl/spl_progs/int_14.xsm
 load --int=15 ../spl/spl_progs/int_15.xsm
+load --int=16 ../spl/spl_progs/int_16.xsm
+load --int=17 ../spl/spl_progs/int_17.xsm
 load --int=timer ../spl/spl_progs/sample_timer.xsm
 load --int=console ../spl/spl_progs/console.xsm
 load --int=disk ../spl/spl_progs/disk.xsm
@@ -34,6 +36,7 @@ load --exec ../expl/samples/ls.xsm
 load --exec ../expl/samples/lu.xsm
 load --exec ../expl/samples/rm.xsm
 load --exec ../expl/samples/ru.xsm
+load --exec ../expl/samples/pid.xsm
 load --exec ../expl/samples/assignment/a27Q1.xsm
 load --exec ../expl/samples/assignment/a27Q2.xsm
 load --exec ../expl/samples/assignment/a27Q3.xsm
@@ -41,3 +44,6 @@ load --exec ../expl/samples/assignment/a27Q4.xsm
 load --exec ../expl/samples/assignment/a27Q5.xsm
 load --exec ../expl/samples/assignment/pgm1.xsm
 load --exec ../expl/samples/assignment/pgm2.xsm
+load --exec ../expl/samples/assignment/m_sort.xsm
+load --exec ../expl/samples/assignment/m_store.xsm
+load --exec ../expl/samples/assignment/m_merge.xsm

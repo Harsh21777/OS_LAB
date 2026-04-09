@@ -178,7 +178,7 @@ if(funcNum==KILL_ALL) then
 
     //exit all processes except idle init and currentPID
     iter=2;
-    while(iter<MAX_PROC_NUM) do
+    while(iter<MAX_PROC_NUM-1) do
         if((iter!=currentPID)&&([PROCESS_TABLE+iter*16+4]!=TERMINATED)) then
             multipush(R1,R4,R5);
 
