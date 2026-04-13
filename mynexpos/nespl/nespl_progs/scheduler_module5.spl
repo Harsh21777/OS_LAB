@@ -1,0 +1,146 @@
+//Push the BP of the current process on top of the kernel stack
+multipush(BP);
+
+//Obtain the PID of the current process from the System Status Table.
+alias currentPID R1;
+currentPID=[SYSTEM_STATUS_TABLE +CORE*5+1];
+
+//Obtain the Process Table entry corresponding to the current PID.
+alias process_table_entry R2;
+process_table_entry=PROCESS_TABLE+currentPID*16;
+[process_table_entry+12]=SP%512;
+[process_table_entry+14]=PTBR;
+[process_table_entry+15]=PTLR;
+
+multipush(R1,R2);
+
+R1 = ACQUIRE_SCHED_LOCK;
+call MOD_8;//access control
+
+multipop(R1,R2);
+
+
+alias tempPID R3;
+alias newPID R4;
+
+if(CORE==PRIMARY_CORE) then
+    newPID=IDLE_PROCESS;
+    if([SYSTEM_STATUS_TABLE+5]!=0) then
+        //Paging is ongoing
+        if([PROCESS_TABLE+SWAPPER_DAEMON*16+4]==WAIT_DISK) then
+            newPID=IDLE_PROCESS;
+        else
+            newPID=SWAPPER_DAEMON;
+        endif;
+
+    else
+        //LOGOUT_STATUS=1 and the secondary core is not running IDLE2
+        if([SYSTEM_STATUS_TABLE+7]==1 && [SYSTEM_STATUS_TABLE+6]!=IDLE2_PROCESS) then
+            newPID=IDLE_PROCESS;
+
+        else
+            tempPID=(currentPID+1)%MAX_PROC_NUM; // 14,15 aren't scheduled on core1
+            while(tempPID!=currentPID) do
+
+                if (tempPID == IDLE_PROCESS || tempPID==IDLE2_PROCESS
+                    || tempPID==SWAPPER_DAEMON) then
+                    tempPID = (tempPID + 1) % MAX_PROC_NUM;
+                    continue;
+                endif;
+                
+                if([PROCESS_TABLE+(tempPID*16)+4]==CREATED ||[PROCESS_TABLE+(tempPID*16)+4]==READY) then
+                    if([PROCESS_TABLE+tempPID*16+6]==0 && [SYSTEM_STATUS_TABLE+6]!=tempPID) then
+                        newPID=tempPID;
+                        break;
+                    endif;  
+
+                endif;
+                
+                tempPID=(tempPID+1)%MAX_PROC_NUM;
+                
+            endwhile;
+
+        endif;
+
+    endif;
+else 
+    newPID=IDLE2_PROCESS;
+    
+    if([SYSTEM_STATUS_TABLE+5]!=0 || [SYSTEM_STATUS_TABLE+7]==1) then
+        //PAGING_STATUS or LOGOUT_STATUS is set
+        newPID=IDLE2_PROCESS;
+
+    else
+        
+        tempPID=(currentPID+1)%MAX_PROC_NUM; // 15 isn't scheduled on core2 & 14 already scheduled if needed
+        while(tempPID!=currentPID) do
+
+            if (tempPID == IDLE_PROCESS || tempPID == LOGIN_PROCESS 
+                || tempPID == SHELL_PROCESS||tempPID == IDLE2_PROCESS
+                || tempPID==SWAPPER_DAEMON) then
+                tempPID = (tempPID + 1) % MAX_PROC_NUM;
+                continue;
+            endif;
+            
+            if([PROCESS_TABLE+(tempPID*16)+4]==CREATED ||[PROCESS_TABLE+(tempPID*16)+4]==READY) then
+                if([PROCESS_TABLE+tempPID*16+6]==0 && [SYSTEM_STATUS_TABLE+1]!=tempPID) then
+                    newPID=tempPID;
+                    break;
+                endif;  
+
+            endif;
+            
+            tempPID=(tempPID+1)%MAX_PROC_NUM;
+            
+        endwhile;
+
+    endif;   
+endif;
+
+
+
+alias new_processs_table_entry R5;
+new_processs_table_entry = PROCESS_TABLE+newPID*16;
+PTBR=[new_processs_table_entry+14];
+PTLR=[new_processs_table_entry+15];
+
+[SYSTEM_STATUS_TABLE+CORE*5+1]=newPID;
+
+//if process was in CREATED state before so nothing to restore
+if([new_processs_table_entry+4]==CREATED) then 
+    BP=[([new_processs_table_entry+11]*512)];
+    [new_processs_table_entry+4]=RUNNING;
+    [new_processs_table_entry+9]=0;
+
+    //  STILL ON KERNEL STACK: Safe to push/pop and call modules!
+    multipush(R1,R2,R3,R4,R5);
+    R1 = RELEASE_LOCK;
+    R2 = SCHED_LOCK;
+    call MOD_8; 
+    multipop(R1,R2,R3,R4,R5);
+    
+    //  NOW SWITCH TO USER STACK!
+    SP=[new_processs_table_entry+13];
+    
+    ireturn;
+endif;
+
+[new_processs_table_entry+4]=RUNNING;
+
+multipush(R1,R2,R3,R4,R5);
+
+R1 = RELEASE_LOCK;
+R2 = SCHED_LOCK;
+call MOD_8;
+
+multipop(R1,R2,R3,R4,R5);
+
+SP=[new_processs_table_entry+11]*512+[new_processs_table_entry+12];//userAreaPage*512+offset(KPTR)
+
+multipop(BP);
+
+return;
+
+
+
+

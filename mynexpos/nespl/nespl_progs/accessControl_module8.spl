@@ -1,0 +1,49 @@
+alias funcNum R1;
+
+if(funcNum==ACQUIRE_KERN_LOCK) then
+
+    //core is SECONDARY_CORE
+    if (CORE==SECONDARY_CORE) then
+        //PAGING_STATUS or LOGOUT_STATUS is on
+        if ([SYSTEM_STATUS_TABLE+5]==1 || [SYSTEM_STATUS_TABLE+7]==1) then
+            // eXpOS design  does not permit a process to execute critical code on the secondary core when paging or logout is ongoing.
+
+            //Set the state of current process to READY
+            //Call the switch_context() function of the Scheduler Module.
+
+            [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 6]*16 + 4] = READY;
+            call MOD_5;//scheduler
+        endif;
+
+
+    endif;
+
+    while ( tsl (KERN_LOCK) == 1 ) do
+        continue;
+    endwhile;
+
+    return;
+endif;
+
+if(funcNum==ACQUIRE_SCHED_LOCK) then
+    while ( tsl (SCHED_LOCK) == 1 ) do
+        continue;
+    endwhile;
+
+    return;
+endif;
+
+if(funcNum==ACQUIRE_GLOCK) then
+    while ( tsl (GLOCK) == 1 ) do
+        continue;
+    endwhile;
+
+    return;
+endif;
+
+if(funcNum==RELEASE_LOCK) then
+    alias lockVarAddr R2;
+
+    [lockVarAddr]=0;
+    return;
+endif;

@@ -1,0 +1,253 @@
+alias retVal R0;
+alias funcNum R1;
+
+
+//aquire disk
+if(funcNum==ACQUIRE_DISK) then
+    alias currentPID R2;
+    while([DISK_STATUS_TABLE]==1) do
+        [PROCESS_TABLE+currentPID*16+4]=WAIT_DISK;
+        multipush(R1,R2);
+        R1 = RELEASE_LOCK;
+        R2 = KERN_LOCK;
+        call MOD_8;
+
+        call MOD_5;
+
+        R1= ACQUIRE_KERN_LOCK;
+        call MOD_8;
+
+        multipop(R1,R2);
+    endwhile;
+
+    [DISK_STATUS_TABLE]=1;
+    [DISK_STATUS_TABLE+4]=currentPID;
+
+    breakpoint;
+    return;
+endif;
+
+//aquire terminal
+if(funcNum==ACQUIRE_TERMINAL) then 
+    alias currentPID R2;
+
+    while([TERMINAL_STATUS_TABLE]!=0) do
+        [PROCESS_TABLE+currentPID*16+4]=WAIT_TERMINAL;
+
+        multipush(R1,R2);
+        R1 = RELEASE_LOCK;
+        R2 = KERN_LOCK;
+        call MOD_8;
+
+        call MOD_5;
+
+        R1= ACQUIRE_KERN_LOCK;
+        call MOD_8;
+
+        multipop(R1,R2);
+
+    endwhile;
+
+    [TERMINAL_STATUS_TABLE]=1;
+    [TERMINAL_STATUS_TABLE+1]=currentPID;
+
+    breakpoint;
+    return;
+endif;
+
+//release terminal
+if(funcNum==RELEASE_TERMINAL) then 
+    alias currentPID R2;
+
+    if(currentPID!=[TERMINAL_STATUS_TABLE+1]) then
+        retVal=-1;
+        return;
+    endif;
+    [TERMINAL_STATUS_TABLE]=0;
+
+    alias iterPID R5;
+    iterPID=0;
+
+    while(iterPID<MAX_PROC_NUM) do
+        if([PROCESS_TABLE+iterPID*16+4]==WAIT_TERMINAL) then
+            [PROCESS_TABLE+iterPID*16+4]=READY;
+        endif;
+        iterPID=iterPID+1;
+    endwhile;
+
+    retVal=0;
+
+    breakpoint;
+    return;
+endif;
+
+//aquire semphore
+if(funcNum==ACQUIRE_SEMAPHORE) then
+    alias currentPID R2;
+    
+    alias iter R3;
+    iter=0;
+    while(iter<32) do
+        if([SEMAPHORE_TABLE+(iter*4)+1]==0) then
+            break;
+        endif;
+        iter=iter+1;
+    endwhile;
+
+    if(iter==32) then
+        retVal=-1;
+        return;
+    endif;
+
+    //set locking pid to -1 & proc count to 1
+    [SEMAPHORE_TABLE+(iter*4)]=-1;
+    [SEMAPHORE_TABLE+(iter*4)+1]=1;
+
+    retVal=iter;
+    return;
+
+endif;
+
+//release semaphore
+if(funcNum==RELEASE_SEMAPHORE) then
+    alias semTableIdx R2;
+    alias currentPID R3;
+
+    if((semTableIdx>31)||(semTableIdx<0)) then
+        retVal=-1;
+        return;
+    endif;
+
+    if([SEMAPHORE_TABLE+(semTableIdx*4)]==currentPID) then
+        [SEMAPHORE_TABLE+(semTableIdx*4)]=-1;
+
+        alias iter R4;
+        iter=0;
+        while(iter<16) do
+            if(([PROCESS_TABLE+(iter*16)+4]==WAIT_SEMAPHORE)&&([PROCESS_TABLE+(iter*16)+5]==semTableIdx)) then
+                [PROCESS_TABLE+(iter*16)+4]=READY;
+            endif;
+            iter=iter+1;
+        endwhile;
+    endif;
+
+    [SEMAPHORE_TABLE+(semTableIdx*4)+1]=[SEMAPHORE_TABLE+(semTableIdx*4)+1]-1;
+
+    retVal=0;
+    return;
+endif;
+
+//aquire inode
+if(funcNum==ACQUIRE_INODE) then
+    alias inodeEntry R2;
+    alias currentPID R3;
+
+    while([FILE_STATUS_TABLE+inodeEntry*4+0]!=-1) do
+        [PROCESS_TABLE+currentPID*16+4]=WAIT_FILE;
+        [PROCESS_TABLE+currentPID*16+5]=inodeEntry;
+
+        multipush(R1,R2,R3);
+        R1 = RELEASE_LOCK;
+        R2 = KERN_LOCK;
+        call MOD_8;
+
+        call MOD_5;
+
+        R1= ACQUIRE_KERN_LOCK;
+        call MOD_8;
+
+        multipop(R1,R2,R3);
+    endwhile;
+
+    if([INODE_TABLE+inodeEntry*16+1]==-1) then
+        retVal=-1;
+        return;
+    endif;
+
+    //lock inode
+    [FILE_STATUS_TABLE+inodeEntry*4+0]=currentPID;
+
+    retVal=0;
+    return;
+endif;
+
+//release inode
+if(funcNum==RELEASE_INODE) then
+    alias inodeEntry R2;
+    alias currentPID R3;
+
+    //check if locking pid is currentPID
+    if([FILE_STATUS_TABLE+inodeEntry*4+0]!=currentPID) then
+        retVal=-1;
+        return;
+    endif;
+
+    //free lock
+    [FILE_STATUS_TABLE+inodeEntry*4+0]=-1;
+
+    alias iter R4;
+    iter=0;
+    while(iter<MAX_PROC_NUM) do
+        if(([PROCESS_TABLE+iter*16+4]==WAIT_FILE)&&([PROCESS_TABLE+iter*16+5]==inodeEntry)) then
+            [PROCESS_TABLE+iter*16+4]=READY;
+        endif;
+        iter=iter+1;
+    endwhile;
+
+    retVal=0;
+    return;
+endif;
+
+//acquire buffer
+if(funcNum==ACQUIRE_BUFFER) then
+    alias bufferNum R2;
+    alias currentPID R3;
+
+    while([BUFFER_TABLE+bufferNum*4+2]!=-1) do
+        [PROCESS_TABLE+currentPID*16+4]=WAIT_BUFFER;
+        [PROCESS_TABLE+currentPID*16+5]=bufferNum;
+
+        multipush(R1,R2,R3);
+        R1 = RELEASE_LOCK;
+        R2 = KERN_LOCK;
+        call MOD_8;
+
+        call MOD_5;
+
+        R1= ACQUIRE_KERN_LOCK;
+        call MOD_8;
+
+        multipop(R1,R2,R3);
+
+    endwhile;
+
+    [BUFFER_TABLE+bufferNum*4+2]=currentPID;
+    return;
+endif;
+
+//release buffer
+if(funcNum==RELEASE_BUFFER) then
+    alias bufferNum R2;
+    alias currentPID R3;
+
+    if(currentPID!=[BUFFER_TABLE+bufferNum*4+2]) then
+        retVal=-1;
+        return;
+    endif;
+
+    [BUFFER_TABLE+bufferNum*4+2]=-1;
+
+    alias iter R4;
+    iter=0;
+    while(iter<MAX_PROC_NUM) do
+        if(([PROCESS_TABLE+iter*16+4]==WAIT_BUFFER) && ([PROCESS_TABLE+iter*16+5]==bufferNum)) then
+            [PROCESS_TABLE+iter*16+4]=READY;
+        endif;
+        iter=iter+1;
+    endwhile;
+
+    retVal=0;
+    return;
+endif;
+
+

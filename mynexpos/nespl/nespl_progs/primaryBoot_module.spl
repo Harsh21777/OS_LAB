@@ -1,0 +1,341 @@
+//load root file
+loadi(62,5);
+
+//load disk free list
+loadi(61,2);
+
+// loading ExHanding code from disk 15-16 to mem 2-3
+loadi(2,15);
+loadi(3,16);
+
+//loading timer interrupt routine 
+loadi(4,17);
+loadi(5,18);
+
+//load disk interrupt
+loadi(6,19);
+loadi(7,20);
+
+//load console interrupt
+loadi(8,21);
+loadi(9,22);
+
+//load INT4
+loadi(10,23);
+loadi(11,24);
+
+//load INT5
+loadi(12,25);
+loadi(13,26);
+
+//load INT6
+loadi(14,27);
+loadi(15,28);
+
+//load INT7 from disk to mem
+loadi(16,29);
+loadi(17,30);
+
+//load INT8
+loadi(18,31);
+loadi(19,32);
+
+//load INT9
+loadi(20,33);
+loadi(21,34);
+
+// loading INT 10 code from disk 35-36 to mem 22-23
+loadi(22,35);
+loadi(23,36);
+
+//load INT11
+loadi(24,37);
+loadi(25,38);
+
+//load INT12
+loadi(26,39);
+loadi(27,40);
+
+//load INT13
+loadi(28,41);
+loadi(29,42);
+
+//load INT14
+loadi(30,43);
+loadi(31,44);
+
+//load INT15
+loadi(32,45);
+loadi(33,46);
+
+//load INT16
+loadi(34,47);
+loadi(35,48);
+
+//load INT17
+loadi(36,49);
+loadi(37,50);
+
+//load module 0 (resource manager)
+loadi(40,53);
+loadi(41,54);
+
+//load module 1 (process manager)
+loadi(42,55);
+loadi(43,56);
+
+//load module 2 (memory manager)
+loadi(44,57);
+loadi(45,58);
+
+//load module 3 (file manager)
+loadi(46,59);
+loadi(47,60);
+
+//load module 4 (device manager)
+loadi(48,61);
+loadi(49,62);
+
+// scheduler(module 5)
+loadi(50, 63);
+loadi(51, 64);
+
+//load module 6 (pager)
+loadi(52,65);
+loadi(53,66);
+
+
+// load module 8 (Access Control Module)
+loadi(132, 516);
+loadi(133, 517);
+
+//load inode table
+loadi(59,3);
+loadi(60,4);
+
+// load library code
+loadi(63,13);
+loadi(64,14);
+
+// Load only the first code page from disk to memory 
+loadi(65,7);
+//loadi(66,8);
+
+// loading SHELL program from disk 9-10 to mem 67-68
+loadi(67,9);
+loadi(68,10);
+
+
+//FOR SHELL PROCESS
+
+// initializing PTBR to default - 29696+20(as pid of init=1)
+PTBR = 29736;
+
+// INIT Program needs 3 pages of memory
+PTLR = 10;
+
+// library
+[PTBR+0] =  63;
+[PTBR+1] = "0100";	
+[PTBR+2] = 64;
+[PTBR+3] = "0100";
+
+//heap
+[PTBR+4] = -1;
+[PTBR+5] = "0000";	
+[PTBR+6] = -1;
+[PTBR+7] = "0000";	
+
+//code
+[PTBR+8] = 67;
+[PTBR+9] = "0100";	
+[PTBR+10] = 68;
+[PTBR+11] = "0100";	
+[PTBR+12] = -1;
+[PTBR+13] = "0000";	
+[PTBR+14] = -1;
+[PTBR+15] = "0000";	
+
+//stack
+[PTBR+16] = 78;
+[PTBR+17] = "0110";	
+[PTBR+18] = 79;
+[PTBR+19] = "0110";	
+
+[78*512] = [67*512+1];	// IP to 2nd word in header when loaded from code which is in EXEC format
+
+alias shell_procTable R1;
+shell_procTable=PROCESS_TABLE+32;
+
+[shell_procTable+0]=0;
+//user Area page for init process
+[shell_procTable+ 11] = 80;
+//setting PID & PPID for 2st process 
+[shell_procTable+1]=SHELL_PROCESS;
+[shell_procTable+2]=1;
+//set userId to root i.e. 1
+[shell_procTable+3]=ROOT;
+//setinng state
+[shell_procTable+4]=TERMINATED;
+//seting UPTR field 
+[shell_procTable+ 13] = 4096;//8*512
+//seting KPTR field 
+[shell_procTable+ 12] = 0;
+//seting PTBR and PTLR field 
+[shell_procTable+ 14] = PTBR;
+[shell_procTable+ 15] = 10;
+
+alias iter R0;
+alias dmt_shell R2;
+dmt_shell=DISK_MAP_TABLE+20;
+//initialize per-process diskMapTable
+iter=0;
+while(iter<10) do
+    [dmt_shell+iter]=-1;
+    iter=iter+1;
+endwhile;
+[dmt_shell+4]=9;
+[dmt_shell+5]=10;
+
+
+//FOR LOGIN(INIT) PROCESS
+
+// initializing PTBR to default - 29696+20(as pid of init=1)
+PTBR = 29716;
+
+// INIT Program needs 3 pages of memory
+PTLR = 10;
+
+// library
+[PTBR+0] =  63;
+[PTBR+1] = "0100";	
+[PTBR+2] = 64;
+[PTBR+3] = "0100";
+
+//heap
+[PTBR+4] = -1;
+[PTBR+5] = "0000";	
+[PTBR+6] = -1;
+[PTBR+7] = "0000";	
+
+//code
+[PTBR+8] = 65;
+[PTBR+9] = "0100";	
+[PTBR+10] = -1;
+[PTBR+11] = "0000";	
+[PTBR+12] = -1;
+[PTBR+13] = "0000";	
+[PTBR+14] = -1;
+[PTBR+15] = "0000";	
+
+//stack
+[PTBR+16] = 66;
+[PTBR+17] = "0110";	
+[PTBR+18] = -1;
+[PTBR+19] = "0000";	
+
+[66*512] = [65*512+1];	// IP to 2nd word in header when loaded from code which is in EXEC format
+
+alias login_procTable R3;
+login_procTable= PROCESS_TABLE+ LOGIN_PROCESS*16;
+
+[login_procTable+0]=0;
+//user Area page for init process
+[login_procTable+ 11] = 77;
+//setting PID for 1st process 
+[login_procTable+1]=LOGIN_PROCESS;
+//set userId to kernel i.e. 0
+[login_procTable+3]=KERNEL;
+//setinng state
+[login_procTable+4]=CREATED;
+//seting UPTR field 
+[login_procTable+ 13] = 4096;//8*512
+//seting KPTR field 
+[login_procTable+ 12] = 0;
+//seting PTBR and PTLR field 
+[login_procTable+ 14] = PTBR;
+[login_procTable+ 15] = 10;
+
+
+// per-process resource table for init
+iter = 0;
+while (iter < 16) do
+    [77 * 512 + RESOURCE_TABLE_OFFSET + iter] = -1;
+    [80 * 512 + RESOURCE_TABLE_OFFSET + iter] = -1;
+    iter = iter + 1;
+endwhile;
+
+//seting MEMORY_FREE_LIST
+iter=0;
+while(iter<=NUM_MEM_PAGES) do
+    if(iter<=84 ||(iter>=128&&iter<=139)) then
+        [MEMORY_FREE_LIST+iter]=1;   
+    else
+        [MEMORY_FREE_LIST+iter]=0;
+    endif;
+    iter=iter+1;
+endwhile;
+
+//initialise SEMAPHORE_TABLE & open file table
+iter=0;
+while(iter<32) do 
+    [SEMAPHORE_TABLE+(iter*4)]=-1;
+    [SEMAPHORE_TABLE+(iter*4)+1]=0;
+
+    [OPEN_FILE_TABLE+iter*4+0]=-1;
+    [OPEN_FILE_TABLE+iter*4+1]=0;
+
+    iter=iter+1;
+endwhile;
+
+//initialize file status table
+iter=0;
+while(iter<(240)) do
+    [FILE_STATUS_TABLE+iter]=-1;
+    
+    iter=iter+1;
+endwhile;
+
+//initializing buffer table
+iter=0;
+while(iter<MAX_BUFFER) do
+    alias buffTable R4;
+    buffTable=BUFFER_TABLE+iter*4;
+    [buffTable+0]=-1;
+    [buffTable+1]=0;
+    [buffTable+2]=-1;
+
+    iter=iter+1;
+endwhile;
+
+// Initialize user table entries 2-15 to -1
+iter=2;
+while(iter<MAX_USER_NUM) do
+    [USER_TABLE+iter*2]=-1;
+    [USER_TABLE+iter*2+1]=-1;
+    iter=iter+1;
+endwhile;
+
+
+iter=2;
+while(iter<15) do
+    [PROCESS_TABLE+iter*16+4]=TERMINATED;
+    [PROCESS_TABLE+iter*16+0]=0;
+    iter=iter+1;
+endwhile;
+
+//initialize the STATUS field in the Terminal Status table as 0.
+[TERMINAL_STATUS_TABLE]=0;
+
+//Initialize the STATUS field in the Disk Status Table
+[DISK_STATUS_TABLE]=0;
+
+//initialize the fields WAIT_MEM_COUNT to 0 and MEM_FREE_COUNT to number of free pages
+[SYSTEM_STATUS_TABLE+3]=0;
+[SYSTEM_STATUS_TABLE+2]=43;
+
+//Initialize the SWAPPED_COUNT field and PAGING_STATUS field
+[SYSTEM_STATUS_TABLE+4]=0;
+[SYSTEM_STATUS_TABLE+5]=0;
+
+return;

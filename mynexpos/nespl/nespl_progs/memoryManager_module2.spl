@@ -1,0 +1,161 @@
+alias funcNum R1;
+
+//Get Free Page
+if(funcNum==GET_FREE_PAGE) then
+    //Increment WAIT_MEM_COUNT field
+    [SYSTEM_STATUS_TABLE+3]=[SYSTEM_STATUS_TABLE+3]+1;
+
+    while([SYSTEM_STATUS_TABLE+2]==0) do
+        [PROCESS_TABLE+[SYSTEM_STATUS_TABLE+CORE*5+1]*16+4]=WAIT_MEM;
+        multipush(R1);
+        R1 = RELEASE_LOCK;
+        R2 = KERN_LOCK;
+        call MOD_8;
+
+        call MOD_5;
+
+        R1= ACQUIRE_KERN_LOCK;
+        call MOD_8;
+        multipop(R1);
+    endwhile;
+
+    //Decrement WAIT_MEM_COUNT field & MEM_FREE_COUNT
+    [SYSTEM_STATUS_TABLE+3]=[SYSTEM_STATUS_TABLE+3]-1;
+
+    alias iter R2;
+    iter=76;
+    while(iter<MAX_MEM_PAGE) do
+        if([MEMORY_FREE_LIST+iter]==0) then  
+            break;
+        endif;
+        iter=iter+1;
+    endwhile;
+
+    if(iter==MAX_MEM_PAGE) then
+        R0=-1;
+        return;
+    endif;
+
+    [MEMORY_FREE_LIST+iter]=1;
+    [SYSTEM_STATUS_TABLE+2]=[SYSTEM_STATUS_TABLE+2]-1;
+    R0=iter;
+
+    breakpoint;
+    return;
+endif;
+
+//release Page
+if(funcNum==RELEASE_PAGE) then
+    alias pageNum R2;
+    //Decrement the corresponding entry in the memory free list and increment the MEM_FREE_COUNT 
+    [MEMORY_FREE_LIST+pageNum]=[MEMORY_FREE_LIST+pageNum]-1;
+
+    if ([MEMORY_FREE_LIST + pageNum] == 0) then
+        // increment memory free count
+        [SYSTEM_STATUS_TABLE + 2] = [SYSTEM_STATUS_TABLE + 2] + 1;
+    endif;
+
+    alias iter R3;
+    iter=1;
+
+    while(iter<16) do
+        if([PROCESS_TABLE+iter*16+4]==WAIT_MEM) then
+            [PROCESS_TABLE+iter*16+4]=READY;
+        endif;
+        iter=iter+1;
+    endwhile;
+
+    breakpoint;
+    return;
+endif;
+
+//release block
+if(funcNum==RELEASE_BLOCK) then
+    alias blkNum R2;
+    [DISK_FREE_LIST+blkNum]=[DISK_FREE_LIST+blkNum]-1;
+
+    return;
+endif;
+
+//Get Code Page
+if (funcNum == GET_CODE_PAGE) then
+    alias blockNumber R2;
+    alias i R3;
+    alias j R4;
+    alias pageNumber R5;
+
+    i = 0;
+    while (i < MAX_PROC_NUM) do
+        j = 4;
+        while (j < 8) do
+            if ([DISK_MAP_TABLE + 10 * i + j] == blockNumber) then
+                pageNumber = [PAGE_TABLE_BASE + 20 * i + 8 + 2 * (j - 4)];
+                if (pageNumber != -1) then
+                    [MEMORY_FREE_LIST + pageNumber] = [MEMORY_FREE_LIST + pageNumber] + 1;
+                    R0 = pageNumber;
+                    return;
+                endif;
+            endif;
+            j = j + 1;
+        endwhile;
+        i = i + 1;
+    endwhile;
+
+    multipush(R1, R2);
+    
+    R1 = GET_FREE_PAGE;
+    call MOD_2;
+
+    pageNumber = R0;
+
+    multipop(R1, R2);
+
+    multipush(R1, R2, R5);
+
+    R1 = DISK_LOAD;
+    R4 = blockNumber;
+    R2 = [SYSTEM_STATUS_TABLE +CORE*5+ 1];
+    R3 = pageNumber;
+    call MOD_4;
+
+    multipop(R1, R2, R5);
+
+    R0 = pageNumber;
+    return;
+endif;
+
+//get free block
+if(funcNum==GET_FREE_BLOCK) then
+    alias iter R2;
+    iter=DISK_FREE_AREA;
+
+    while(iter<DISK_SWAP_AREA) do
+        if([DISK_FREE_LIST+iter]==0) then
+            [DISK_FREE_LIST+iter]=1;
+            R0=iter;
+            return;
+        endif;
+        iter=iter+1;
+    endwhile;
+
+    R0=-1;
+    return;
+endif;
+
+if(funcNum==GET_SWAP_BLOCK) then
+    alias iter R2;
+    iter=DISK_SWAP_AREA;
+
+    while(iter<DISK_SIZE) do
+        if([DISK_FREE_LIST+iter]==0) then
+            [DISK_FREE_LIST+iter]=1;
+            R0=iter;
+            return;
+        endif;
+        iter=iter+1;
+    endwhile;
+
+    R0=-1;
+    return;
+endif;
+    

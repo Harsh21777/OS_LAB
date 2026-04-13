@@ -1,0 +1,83 @@
+breakpoint;
+
+//set LOGOUT_STATUS
+[SYSTEM_STATUS_TABLE+7]=1;
+
+//saving userStack and setting kernelStack
+alias userSP R1;
+userSP=SP;
+
+[PROCESS_TABLE+[SYSTEM_STATUS_TABLE+CORE*5+1]*16+13]=SP;
+SP=[PROCESS_TABLE+[SYSTEM_STATUS_TABLE+CORE*5+1]*16+11]*512-1;
+
+while ([SYSTEM_STATUS_TABLE + 6] != IDLE2_PROCESS) do
+    R1 = RELEASE_LOCK;
+    R2 = KERN_LOCK;
+    call MOD_8;
+    
+    call MOD_5;
+endwhile;
+
+multipush(R1);
+R1 = ACQUIRE_KERN_LOCK;
+call MOD_8;//access control
+multipop(R1);
+
+//change MODE flg
+[PROCESS_TABLE+[SYSTEM_STATUS_TABLE+CORE*5+1]*16+9]=INT_LOGOUT;
+
+//current process is not the shell
+if([SYSTEM_STATUS_TABLE+CORE*5+1]!=SHELL_PROCESS) then 
+    [([PTBR + 2*((userSP-1)/512)]*512)+((userSP-1)%512)]=-1;
+    [PROCESS_TABLE+[SYSTEM_STATUS_TABLE+CORE*5+1]*16+9]=0;
+    SP=userSP;
+
+    R1 = RELEASE_LOCK;
+    R2 = KERN_LOCK;
+    call MOD_8;
+    ireturn;
+endif;
+
+multipush(R1);
+
+R1=KILL_ALL;
+R2=[SYSTEM_STATUS_TABLE+CORE*5+1];
+call MOD_1;//process manager
+
+multipop(R1);
+
+//reset LOGOUT_STATUS
+[SYSTEM_STATUS_TABLE+7]=0;
+
+[PROCESS_TABLE+[SYSTEM_STATUS_TABLE+CORE*5+1]*16+4]=TERMINATED;
+
+//Shell should be set ready to run when the next user logs in
+alias entryPointIP R2;
+entryPointIP=[[PTBR+4*2]*512+1];
+
+[[PTBR+16]*512+0]=[[PTBR+8]*512+1];
+[PROCESS_TABLE+[SYSTEM_STATUS_TABLE+CORE*5+1]*16+13]=8*512;
+
+//Wake up the Login process
+[PROCESS_TABLE+LOGIN_PROCESS*16+4]=READY;
+
+//reset the CURRENT_USER_ID field back to 0 (kernel)
+[SYSTEM_STATUS_TABLE+0]=0;
+
+R1 = RELEASE_LOCK;
+R2 = KERN_LOCK;
+call MOD_8;
+
+multipush(R1,R2);
+
+call MOD_5;//scheduler
+
+multipop(R1,R2);
+
+SP = userSP;
+[PROCESS_TABLE + [SYSTEM_STATUS_TABLE+CORE*5+1] * 16 + 9] = 0;
+
+
+ireturn;
+
+

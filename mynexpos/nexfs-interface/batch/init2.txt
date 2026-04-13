@@ -1,0 +1,51 @@
+fdisk
+load --os=primary ../nespl/nespl_progs/os_startup.xsm
+load --os=secondary ../nespl/nespl_progs/secondaryBoot_module.xsm
+load --library ../../myexpos/expl/library.lib
+load --init ../../myexpos/expl/samples/login.xsm
+load --shell ../../myexpos/expl/samples/shellFinal.xsm
+load --idle ../../myexpos/expl/samples/idle.xsm
+load --exhandler ../nespl/nespl_progs/exception_handler.xsm
+load --int=4 ../nespl/nespl_progs/int_4.xsm
+load --int=5 ../nespl/nespl_progs/int_5.xsm
+load --int=6 ../nespl/nespl_progs/int_6.xsm
+load --int=7 ../nespl/nespl_progs/int_7.xsm
+load --int=8 ../nespl/nespl_progs/int_8.xsm
+load --int=9 ../nespl/nespl_progs/int_9.xsm
+load --int=10 ../nespl/nespl_progs/int_10.xsm
+load --int=11 ../nespl/nespl_progs/int_11.xsm
+load --int=12 ../nespl/nespl_progs/int_12.xsm
+load --int=13 ../nespl/nespl_progs/int_13.xsm
+load --int=14 ../nespl/nespl_progs/int_14.xsm
+load --int=15 ../nespl/nespl_progs/int_15.xsm
+load --int=16 ../nespl/nespl_progs/int_16.xsm
+load --int=17 ../nespl/nespl_progs/int_17.xsm
+load --int=timer ../nespl/nespl_progs/timer.xsm
+load --int=console ../nespl/nespl_progs/console.xsm
+load --int=disk ../nespl/nespl_progs/disk.xsm
+load --module 0 ../nespl/nespl_progs/resourceManager_module0.xsm
+load --module 1 ../nespl/nespl_progs/processManager_module1.xsm
+load --module 2 ../nespl/nespl_progs/memoryManager_module2.xsm
+load --module 3 ../nespl/nespl_progs/fileManager_module3.xsm
+load --module 4 ../nespl/nespl_progs/deviceManager_module4.xsm
+load --module 5 ../nespl/nespl_progs/scheduler_module5.xsm
+load --module 6 ../nespl/nespl_progs/pager_module6.xsm
+load --module 7 ../nespl/nespl_progs/primaryBoot_module.xsm
+load --module 8 ../nespl/nespl_progs/accessControl_module8.xsm
+load --exec ../../myexpos/expl/samples/cat.xsm
+load --exec ../../myexpos/expl/samples/cp.xsm
+load --exec ../../myexpos/expl/samples/ls.xsm
+load --exec ../../myexpos/expl/samples/lu.xsm
+load --exec ../../myexpos/expl/samples/rm.xsm
+load --exec ../../myexpos/expl/samples/ru.xsm
+load --exec ../../myexpos/expl/samples/pid.xsm
+load --exec ../../myexpos/expl/samples/assignment/a27Q1.xsm
+load --exec ../../myexpos/expl/samples/assignment/a27Q2.xsm
+load --exec ../../myexpos/expl/samples/assignment/a27Q3.xsm
+load --exec ../../myexpos/expl/samples/assignment/a27Q4.xsm
+load --exec ../../myexpos/expl/samples/assignment/a27Q5.xsm
+load --exec ../../myexpos/expl/samples/assignment/m_merge.xsm
+load --exec ../../myexpos/expl/samples/assignment/m_sort.xsm
+load --exec ../../myexpos/expl/samples/assignment/m_store.xsm
+load --exec ../../myexpos/expl/samples/assignment/pgm1.xsm
+load --exec ../../myexpos/expl/samples/assignment/pgm2.xsm

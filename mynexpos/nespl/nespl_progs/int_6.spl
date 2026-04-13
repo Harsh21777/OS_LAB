@@ -1,0 +1,169 @@
+breakpoint;
+
+alias currentPID R9;
+currentPID=[SYSTEM_STATUS_TABLE+CORE*5+1];
+
+//saving MODE flag
+[PROCESS_TABLE+currentPID*16+9]=INT_READ;
+
+alias userSP R1;
+userSP=SP;
+
+[PROCESS_TABLE+currentPID*16+13]=SP;
+
+SP=[PROCESS_TABLE+currentPID*16+11]*512-1;
+
+multipush(R1,R9);
+
+R1 = ACQUIRE_KERN_LOCK;
+call MOD_8;//access control
+
+multipop(R1,R9);
+
+alias fileDesc R2;
+fileDesc=[([PTBR + 2*((userSP-4)/512)]*512)+((userSP-4)%512)];
+
+if(fileDesc==-1) then
+
+    alias wordPutAddr R3;
+    wordPutAddr=[([PTBR + 2*((userSP-3)/512)]*512)+((userSP-3)%512)];
+
+    multipush(R1,R2,R3,R9);
+
+    R1=TERMINAL_READ;
+    R2=currentPID;
+    R3=wordPutAddr;
+
+    call MOD_4;
+
+    multipop(R1,R2,R3,R9);
+
+else
+    //file descriptor is invalid
+    if(fileDesc>7||fileDesc<0) then
+        [([PTBR + 2*((userSP-1)/512)]*512)+((userSP-1)%512)]=-1;
+        goto endOfCode;        
+    endif;
+
+    alias perProcRes_table R3;
+    alias perProcResTableEntry R4;
+    perProcRes_table=[PROCESS_TABLE+currentPID*16+11]*512+RESOURCE_TABLE_OFFSET;
+    perProcResTableEntry=perProcRes_table+fileDesc*2;
+
+    //Per Process Resource Table entry does not indicate a FILE
+    if([perProcResTableEntry+0]!=FILE) then
+        [([PTBR + 2*((userSP-1)/512)]*512)+((userSP-1)%512)]=-1;
+        goto endOfCode;
+    endif;
+
+    alias opnFileTblIdx R5;
+    alias inodeIdx R6;
+    opnFileTblIdx=[perProcResTableEntry+1];
+    inodeIdx=[OPEN_FILE_TABLE+opnFileTblIdx*4+0];
+
+    multipush(R1,R2,R3,R4,R5,R6,R9);
+
+    R1=ACQUIRE_INODE;
+    R2=inodeIdx;
+    R3=currentPID;
+    call MOD_0; //resource manager
+
+    multipop(R1,R2,R3,R4,R5,R6,R9);
+
+    //acquire inode fails
+    if(R0==-1) then
+        [([PTBR + 2*((userSP-1)/512)]*512)+((userSP-1)%512)]=-1;
+        goto endOfCode;
+    endif;
+
+    alias lSeekPos R7;
+    alias wordPutAddr R8;
+    lSeekPos=OPEN_FILE_TABLE+opnFileTblIdx*4+2;
+    wordPutAddr=[([PTBR + 2*((userSP-3)/512)]*512)+((userSP-3)%512)];
+    wordPutAddr = [PTBR + 2 * (wordPutAddr / 512)] * 512 + wordPutAddr % 512;
+    
+
+    //File corresponds to Root file
+    if(inodeIdx==INODE_ROOT) then
+        //lseek value is equal to the root file size(480)
+        if([lSeekPos]==480) then
+            multipush(R1,R2,R3,R4,R5,R6,R7,R8,R9);
+
+            R1=RELEASE_INODE;
+            R2=inodeIdx;
+            R3=currentPID;
+            call MOD_0; //resource manager
+
+            multipop(R1,R2,R3,R4,R5,R6,R7,R8,R9);
+
+            [([PTBR + 2*((userSP-1)/512)]*512)+((userSP-1)%512)]=-2;
+            goto endOfCode;
+        endif;
+
+        //Read from the word and increment lseek pointer 
+        [wordPutAddr]=[ROOT_FILE+[lSeekPos]];
+        [OPEN_FILE_TABLE+opnFileTblIdx*4+2]=[OPEN_FILE_TABLE+opnFileTblIdx*4+2]+1;
+
+    else
+        if([lSeekPos]==[INODE_TABLE+inodeIdx*16+2]) then
+            multipush(R1,R2,R3,R4,R5,R6,R7,R8,R9);
+
+            R1=RELEASE_INODE;
+            R2=inodeIdx;
+            R3=currentPID;
+            call MOD_0; //resource manager
+
+            multipop(R1,R2,R3,R4,R5,R6,R7,R8,R9);
+
+            [([PTBR + 2*((userSP-1)/512)]*512)+((userSP-1)%512)]=-2;
+            goto endOfCode;
+        endif;
+
+        //Read using buffered read and increment lseek pointer 
+        multipush(R1,R2,R3,R4,R5,R6,R7,R8,R9);
+
+        R1=BUFFERED_READ;
+        R2=[INODE_TABLE+inodeIdx*16+8+([lSeekPos]/512)];//disk blk no.
+        R3=[lSeekPos]%512;//offset
+        R4=wordPutAddr;
+        call MOD_3;//file manager
+
+        multipop(R1,R2,R3,R4,R5,R6,R7,R8,R9);
+
+        [OPEN_FILE_TABLE+opnFileTblIdx*4+2]=[OPEN_FILE_TABLE+opnFileTblIdx*4+2]+1;
+    endif;
+    
+    multipush(R1,R2,R3,R4,R5,R6,R7,R8,R9);
+
+    R1=RELEASE_INODE;
+    R2=inodeIdx;
+    R3=currentPID;
+    call MOD_0; //resource manager
+
+    multipop(R1,R2,R3,R4,R5,R6,R7,R8,R9);
+
+endif;
+
+[([PTBR + 2*((userSP-1)/512)]*512)+((userSP-1)%512)]=0;
+goto endOfCode;
+
+endOfCode:
+    
+    multipush(R1,R9);
+    R1 = RELEASE_LOCK;
+    R2 = KERN_LOCK;
+    call MOD_8;
+    multipop(R1,R9);
+
+    [PROCESS_TABLE+currentPID*16+9]=0;
+    SP=userSP;  
+
+    breakpoint;
+    ireturn;
+
+
+
+
+
+
+

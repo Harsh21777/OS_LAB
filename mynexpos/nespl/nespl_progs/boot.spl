@@ -1,0 +1,258 @@
+// ============================================================
+// Boot Module — optimized for XSM line count
+//
+// KEY TRICK: [CONSTANT] = val  →  1 XSM line  (MOV [addr], val)
+//            [alias+N]  = val  →  3 XSM lines (MOV R16,base / ADD R16,N / MOV [R16],val)
+//
+// So all page table and process table writes use hardcoded addresses.
+// Hardcoded constants used:
+//   PAGE_TABLE_BASE = 29696
+//   Shell  PTBR = 29696 + 40 = 29736  (PID=2, offset=40)
+//   Login  PTBR = 29696 + 20 = 29716  (PID=1, offset=20)
+//   PROCESS_TABLE = 28672
+//   Shell  PT entry = 28672 + 2*16 = 28704
+//   Login  PT entry = 28672 + 1*16 = 28688
+//   DISK_MAP_TABLE = 30032
+//   Shell  DMT     = 30032 + 2*10 = 30052
+// ============================================================
+
+
+// -------------------------------------------------------
+// SECTION 1: Load all OS pages into memory
+// loadi(memPage, diskBlock) = 2 XSM lines — irreducible
+// -------------------------------------------------------
+
+loadi(62,5);   // root file
+loadi(61,2);   // disk free list
+
+loadi(2,15);   loadi(3,16);    // exception handler
+loadi(4,17);   loadi(5,18);    // timer interrupt
+loadi(6,19);   loadi(7,20);    // disk interrupt
+loadi(8,21);   loadi(9,22);    // console interrupt
+loadi(10,23);  loadi(11,24);   // INT4
+loadi(12,25);  loadi(13,26);   // INT5
+loadi(14,27);  loadi(15,28);   // INT6
+loadi(16,29);  loadi(17,30);   // INT7 fork
+loadi(18,31);  loadi(19,32);   // INT8 exec
+loadi(20,33);  loadi(21,34);   // INT9
+loadi(22,35);  loadi(23,36);   // INT10 exit
+loadi(24,37);  loadi(25,38);   // INT11
+loadi(26,39);  loadi(27,40);   // INT12
+loadi(28,41);  loadi(29,42);   // INT13
+loadi(30,43);  loadi(31,44);   // INT14
+loadi(32,45);  loadi(33,46);   // INT15
+loadi(34,47);  loadi(35,48);   // INT16
+loadi(36,49);  loadi(37,50);   // INT17
+
+loadi(40,53);  loadi(41,54);   // MOD0 resource manager
+loadi(42,55);  loadi(43,56);   // MOD1 process manager
+loadi(44,57);  loadi(45,58);   // MOD2 memory manager
+loadi(46,59);  loadi(47,60);   // MOD3 file manager
+loadi(48,61);  loadi(49,62);   // MOD4 device manager
+loadi(50,63);  loadi(51,64);   // MOD5 scheduler
+loadi(52,65);  loadi(53,66);   // MOD6 pager
+
+loadi(132,516); loadi(133,517); // MOD8 access control
+
+loadi(59,3);  loadi(60,4);     // inode table
+loadi(63,13); loadi(64,14);    // library
+loadi(65,7);                   // login code page 0
+loadi(67,9);  loadi(68,10);    // shell code
+
+
+// -------------------------------------------------------
+// SECTION 2: SHELL page table  (PTBR = 29736)
+// Direct address writes = 1 XSM line each (saves 2 per entry vs [PTBR+N])
+// 20 entries = 20 XSM lines instead of 60
+// -------------------------------------------------------
+PTBR = PAGE_TABLE_BASE + 40;   // = 29736
+PTLR = 10;
+
+// library pages (read-only: "0100")
+[29736] = 63;     [29737] = "0100";
+[29738] = 64;     [29739] = "0100";
+// heap (not allocated: -1, "0000")
+[29740] = -1;     [29741] = "0000";
+[29742] = -1;     [29743] = "0000";
+// code pages (read-only: "0100")
+[29744] = 67;     [29745] = "0100";
+[29746] = 68;     [29747] = "0100";
+[29748] = -1;     [29749] = "0000";
+[29750] = -1;     [29751] = "0000";
+// stack pages (read-write: "0110")
+[29752] = 78;     [29753] = "0110";
+[29754] = 79;     [29755] = "0110";
+
+// Set IP: stack page 0 word 0 = entry point from code header
+[78*512] = [67*512+1];
+
+
+// -------------------------------------------------------
+// SECTION 3: SHELL process table (base = 28704)
+// Direct address writes = 1 XSM line each
+// PTBR field uses variable so stays 3 lines (unavoidable)
+// -------------------------------------------------------
+[28704] = 0;          // offset  0: TICK
+[28705] = 2;          // offset  1: PID = SHELL_PROCESS
+[28706] = 1;          // offset  2: PPID = LOGIN_PROCESS
+[28707] = 1;          // offset  3: USERID = ROOT
+[28708] = 4;          // offset  4: STATE = TERMINATED
+[28715] = 80;         // offset 11: USER_AREA_PAGE
+[28716] = 0;          // offset 12: KPTR
+[28717] = 8*512;      // offset 13: UPTR
+[28718] = PTBR;       // offset 14: PTBR  (variable → 3 XSM lines, unavoidable)
+[28719] = 10;         // offset 15: PTLR
+
+
+// -------------------------------------------------------
+// SECTION 4: SHELL disk map table (base = 30052)
+// All -1 except code blocks at [+4]=9, [+5]=10
+// -------------------------------------------------------
+alias iter R0;
+alias dmt  R1;
+dmt = 30052;
+iter = 0;
+while(iter < 10) do
+    [dmt + iter] = -1;
+    iter = iter + 1;
+endwhile;
+[30052 + 4] = 9;
+[30052 + 5] = 10;
+
+
+// -------------------------------------------------------
+// SECTION 5: LOGIN page table  (PTBR = 29716)
+// Direct address writes = 1 XSM line each
+// -------------------------------------------------------
+PTBR = PAGE_TABLE_BASE + 20;   // = 29716
+PTLR = 10;
+
+// library pages
+[29716] = 63;     [29717] = "0100";
+[29718] = 64;     [29719] = "0100";
+// heap (not allocated)
+[29720] = -1;     [29721] = "0000";
+[29722] = -1;     [29723] = "0000";
+// code: only one page
+[29724] = 65;     [29725] = "0100";
+[29726] = -1;     [29727] = "0000";
+[29728] = -1;     [29729] = "0000";
+[29730] = -1;     [29731] = "0000";
+// stack: only one page
+[29732] = 66;     [29733] = "0110";
+[29734] = -1;     [29735] = "0000";
+
+// Set IP: stack page 0 word 0 = entry point from code header
+[66*512] = [65*512+1];
+
+
+// -------------------------------------------------------
+// SECTION 6: LOGIN process table (base = 28688)
+// Direct address writes = 1 XSM line each
+// -------------------------------------------------------
+[28688] = 0;          // offset  0: TICK
+[28689] = 1;          // offset  1: PID = LOGIN_PROCESS
+// offset 2 (PPID) left 0 — not set in original
+[28691] = 0;          // offset  3: USERID = KERNEL
+[28692] = 3;          // offset  4: STATE = CREATED
+[28699] = 77;         // offset 11: USER_AREA_PAGE
+[28700] = 0;          // offset 12: KPTR
+[28701] = 8*512;      // offset 13: UPTR
+[28702] = PTBR;       // offset 14: PTBR  (variable → 3 XSM lines, unavoidable)
+[28703] = 10;         // offset 15: PTLR
+
+
+// -------------------------------------------------------
+// SECTION 7: LOGIN per-process resource table
+// 16 entries at userAreaPage*512 + RESOURCE_TABLE_OFFSET = 77*512+496 = 39920
+// -------------------------------------------------------
+iter = 0;
+while(iter < 16) do
+    [77*512 + 496 + iter] = -1;
+    iter = iter + 1;
+endwhile;
+
+
+// -------------------------------------------------------
+// SECTION 8: MEMORY_FREE_LIST
+// Pages 0–84 and 128–139 are used (ref=1), all others free (ref=0)
+// -------------------------------------------------------
+iter = 0;
+while(iter <= NUM_MEM_PAGES) do
+    if(iter <= 84 || (iter >= 128 && iter <= 139)) then
+        [MEMORY_FREE_LIST + iter] = 1;
+    else
+        [MEMORY_FREE_LIST + iter] = 0;
+    endif;
+    iter = iter + 1;
+endwhile;
+
+
+// -------------------------------------------------------
+// SECTION 9: SEMAPHORE_TABLE + OPEN_FILE_TABLE (32 entries each)
+// -------------------------------------------------------
+iter = 0;
+while(iter < 32) do
+    [SEMAPHORE_TABLE + iter*4]     = -1;
+    [SEMAPHORE_TABLE + iter*4 + 1] = 0;
+    [OPEN_FILE_TABLE + iter*4]     = -1;
+    [OPEN_FILE_TABLE + iter*4 + 1] = 0;
+    iter = iter + 1;
+endwhile;
+
+
+// -------------------------------------------------------
+// SECTION 10: FILE_STATUS_TABLE (4 * MAX_FILE_NUM words, all -1)
+// -------------------------------------------------------
+iter = 0;
+while(iter < 4*MAX_FILE_NUM) do
+    [FILE_STATUS_TABLE + iter] = -1;
+    iter = iter + 1;
+endwhile;
+
+
+// -------------------------------------------------------
+// SECTION 11: BUFFER_TABLE (MAX_BUFFER entries: [-1, 0, -1])
+// -------------------------------------------------------
+iter = 0;
+while(iter < MAX_BUFFER) do
+    [BUFFER_TABLE + iter*4]     = -1;
+    [BUFFER_TABLE + iter*4 + 1] = 0;
+    [BUFFER_TABLE + iter*4 + 2] = -1;
+    iter = iter + 1;
+endwhile;
+
+
+// -------------------------------------------------------
+// SECTION 12: USER_TABLE (entries 2 to MAX_USER_NUM-1, both words = -1)
+// -------------------------------------------------------
+iter = 2;
+while(iter < MAX_USER_NUM) do
+    [USER_TABLE + iter*2]     = -1;
+    [USER_TABLE + iter*2 + 1] = -1;
+    iter = iter + 1;
+endwhile;
+
+
+// -------------------------------------------------------
+// SECTION 13: PROCESS_TABLE entries 2–14 (TICK=0, STATE=TERMINATED)
+// -------------------------------------------------------
+iter = 2;
+while(iter < 15) do
+    [PROCESS_TABLE + iter*16 + 0] = 0;
+    [PROCESS_TABLE + iter*16 + 4] = TERMINATED;
+    iter = iter + 1;
+endwhile;
+
+
+// -------------------------------------------------------
+// SECTION 14: System status fields (all [CONSTANT]=val = 1 XSM line each)
+// -------------------------------------------------------
+[TERMINAL_STATUS_TABLE]     = 0;
+[DISK_STATUS_TABLE]         = 0;
+[SYSTEM_STATUS_TABLE + 2]   = 43;   // MEM_FREE_COUNT
+[SYSTEM_STATUS_TABLE + 3]   = 0;    // WAIT_MEM_COUNT
+[SYSTEM_STATUS_TABLE + 4]   = 0;    // SWAPPED_COUNT
+[SYSTEM_STATUS_TABLE + 5]   = 0;    // PAGING_STATUS
+
+return;

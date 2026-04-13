@@ -1,0 +1,220 @@
+
+//saving userStack and setting kernelStack
+alias userSP R1;
+userSP=SP;
+
+alias processTableEntryParent R8;
+processTableEntryParent=PROCESS_TABLE+[SYSTEM_STATUS_TABLE+CORE*5+1]*16;
+
+[processTableEntryParent+13]=SP;
+SP=[processTableEntryParent+11]*512-1;
+
+multipush(R1,R8);
+R1 = ACQUIRE_KERN_LOCK;
+call MOD_8;//access control
+multipop(R1,R8);
+
+//set MODE flag
+[processTableEntryParent+9]=INT_FORK;
+
+multipush(R1,R8);
+
+R1=GET_PCB_ENTRY;
+call MOD_1;
+
+alias childPID R2;
+childPID=R0;
+
+multipop(R1,R8);
+
+if(childPID==-1) then
+    alias pageNum R3;
+    alias offset R4;
+
+    pageNum=[PTBR+2*((userSP-1)/512)];
+    offset=(userSP-1)%512;
+    [(pageNum)*512+offset]=-1;
+
+    multipush(R1,R8);
+    R1 = RELEASE_LOCK;
+    R2 = KERN_LOCK;
+    call MOD_8;
+    multipop(R1,R8);
+
+    [processTableEntryParent + 9] = 0;
+    SP = [processTableEntryParent+13];
+
+    ireturn;
+endif;
+
+
+//allocate heap pages for parent if not already allocated
+if([PTBR+4]==-1) then
+    multipush(R1,R2,R8);
+
+    R1=GET_FREE_PAGE;
+    call MOD_2;
+
+    [PTBR+4]=R0;
+    [PTBR+5]="0110";
+
+    R1=GET_FREE_PAGE;
+    call MOD_2;
+
+    [PTBR+6]=R0;
+    [PTBR+7]="0110";
+
+    multipop(R1,R2,R8);
+
+endif;
+
+//allocating new stack and userAreaPage for child process
+alias pageTableChild R3;
+pageTableChild=PAGE_TABLE_BASE+20*childPID;
+
+multipush(R1,R2,R3,R8);
+
+R1=GET_FREE_PAGE;
+call MOD_2;
+
+multipop(R1,R2,R3,R8);
+[pageTableChild+16]=R0;
+[pageTableChild+17]="0110";
+
+multipush(R1,R2,R3,R8);
+
+R1=GET_FREE_PAGE;
+call MOD_2;
+
+multipop(R1,R2,R3,R8);
+[pageTableChild+18]=R0;
+[pageTableChild+19]="0110";
+
+multipush(R1,R2,R3,R8);
+
+R1=GET_FREE_PAGE;
+call MOD_2;
+
+multipop(R1,R2,R3,R8);
+[PROCESS_TABLE+16*childPID+11]=R0;
+
+
+//initialise process table for child process
+alias processTableEntryChild R4;
+processTableEntryChild=PROCESS_TABLE+16*childPID;
+
+[processTableEntryChild+3]=[processTableEntryParent+3];
+[processTableEntryChild+6]=0;
+[processTableEntryChild+7]=[processTableEntryParent+7];
+[processTableEntryChild+10]=0;
+[processTableEntryChild+13]=[processTableEntryParent+13];
+
+[processTableEntryChild+0]=0;
+[processTableEntryChild+9]=0;
+[processTableEntryChild+12]=0;
+[processTableEntryChild+2]=[SYSTEM_STATUS_TABLE+CORE*5+1];
+[processTableEntryChild+4]=CREATED;
+
+//perProcessResource table
+alias iter R5;
+iter=RESOURCE_TABLE_OFFSET;
+while(iter<512) do
+    [[processTableEntryChild+11]*512+iter]=[[processTableEntryParent+11]*512+iter];
+    [[processTableEntryChild+11]*512+iter+1]=[[processTableEntryParent+11]*512+iter+1];
+
+    //increase process count in sem table
+    if([[processTableEntryParent+11]*512+iter]==SEMAPHORE) then
+        alias semTableIdx R9;
+        semTableIdx=[[processTableEntryParent+11]*512+iter+1];
+
+        [SEMAPHORE_TABLE+(semTableIdx*4)+1]=[SEMAPHORE_TABLE+(semTableIdx*4)+1]+1;
+    endif;
+
+    //increase open instance count in open file table
+    if([[processTableEntryParent+11]*512+iter]==FILE) then
+        alias opnFileTblIdx R9;
+        opnFileTblIdx=[[processTableEntryParent+11]*512+iter+1];
+
+        [OPEN_FILE_TABLE+opnFileTblIdx*4+1]=[OPEN_FILE_TABLE+opnFileTblIdx*4+1]+1;
+    endif;
+    iter=iter+2;
+endwhile;
+
+//Copy the per-process disk map table of the parent to the child
+
+iter=0;
+while(iter<10) do
+    alias ppid R7;
+    ppid=[SYSTEM_STATUS_TABLE+CORE*5+1];
+    [DISK_MAP_TABLE+10*childPID+iter]=[DISK_MAP_TABLE+10*ppid+iter];
+    iter=iter+1;
+endwhile;
+[DISK_MAP_TABLE+10*childPID+8]=-1;
+[DISK_MAP_TABLE+10*childPID+9]=-1;
+
+
+//Initialize the page table of the child process
+iter=0;
+while(iter<16) do
+    [pageTableChild+iter]=[PTBR+iter];
+    [pageTableChild+iter+1]=[PTBR+iter+1];
+    if([pageTableChild+iter]!=-1) then
+        [MEMORY_FREE_LIST+[pageTableChild+iter]]=[MEMORY_FREE_LIST+[pageTableChild+iter]]+1;
+    endif;
+    iter=iter+2;
+endwhile;
+
+//Copy content of the user stack pages word by word
+iter=0;
+while(iter<PAGE_SIZE) do
+    [([pageTableChild+16]*512)+iter]=[([PTBR+16]*512)+iter];
+    iter=iter+1;
+endwhile;
+
+if ([PTBR+18] != -1) then
+    iter=0;
+    while(iter<PAGE_SIZE) do
+        [([pageTableChild+18]*512)+iter]=[([PTBR+18]*512)+iter];
+        iter=iter+1;
+    endwhile;
+endif;
+
+
+//Store the value in the BP register on top of the kernel stack of child process
+[[processTableEntryChild+11]*512]=BP;
+
+alias pageNum R6;
+alias offset R7;
+
+//Set the return value to 0 for the child process
+pageNum=[pageTableChild+2*(([processTableEntryChild+13]-1)/512)];
+offset=([processTableEntryChild+13]-1)%512;
+[pageNum*512+offset]=0;
+
+//Set the return value to childPID for the parent process
+pageNum=[PTBR+2*((userSP-1)/512)];
+offset=(userSP-1)%512;
+[(pageNum)*512+offset]=childPID;
+
+multipush(R1,R8);
+R1 = RELEASE_LOCK;
+R2 = KERN_LOCK;
+call MOD_8;
+multipop(R1,R8);
+
+[processTableEntryParent + 9] = 0;
+SP =userSP;
+
+ireturn;
+
+
+
+
+
+
+
+
+
+
+
+

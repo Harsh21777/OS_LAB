@@ -1,0 +1,122 @@
+breakpoint;
+
+alias currentPID R4;
+currentPID=[SYSTEM_STATUS_TABLE+CORE*5+1];
+//printing max mem use,no. of disk access,no. of context switches,no. of switches to KERNEL
+//print [32224];
+//print [32225];
+//print [32226];
+//print [32227];
+
+//saving userStack and setting kernelStack
+alias userSP R1;
+userSP=SP;
+
+[PROCESS_TABLE+currentPID*16+13]=SP;
+SP=[PROCESS_TABLE+currentPID*16+11]*512-1;
+
+multipush(R1,R4);
+R1 = ACQUIRE_KERN_LOCK;
+call MOD_8;//access control
+multipop(R1,R4);
+
+//change MODE flg
+[PROCESS_TABLE+currentPID*16+9]=INT_SHUTDOWN;
+
+if((currentPID!=SHELL_PROCESS) || ([PROCESS_TABLE+currentPID*16+3]!=ROOT)) then
+    multipush(R1,R4);
+    R1 = RELEASE_LOCK;
+    R2 = KERN_LOCK;
+    call MOD_8;
+    multipop(R1,R4);
+    
+    [([PTBR + 2*((userSP-1)/512)]*512)+((userSP-1)%512)]=-1;
+    [PROCESS_TABLE+currentPID*16+9]=0;
+    SP=userSP;
+
+    ireturn;
+endif;
+
+
+alias iter R3;
+iter=0;
+
+while(iter<4) do
+    if([BUFFER_TABLE+iter*4+1]==1) then
+        multipush(R1,R2,R3,R4);
+
+        R1=DISK_STORE;
+        R2=currentPID;
+        R4=[BUFFER_TABLE+iter*4+0];
+        R3=BUFFER_BASE+iter;
+        call MOD_4;//device manager
+
+        multipop(R1,R2,R3,R4);  
+        [BUFFER_TABLE+iter*4+1]=0;  
+    endif;
+    iter=iter+1;
+endwhile;
+
+//commit changes in user table,inode table,root file etc
+
+multipush(R1,R2,R3,R4);
+
+//inode table and user table
+R1=DISK_STORE;
+R2=currentPID;
+R3=59;
+R4=3;
+call MOD_4;//device manager
+
+multipop(R1,R2,R3,R4);
+
+multipush(R1,R2,R3,R4);
+
+R1=DISK_STORE;
+R2=currentPID;
+R3=60;
+R4=4;
+call MOD_4;//device manager
+
+multipop(R1,R2,R3,R4);
+
+multipush(R1,R2,R3,R4);
+
+//root file
+R1=DISK_STORE;
+R2=currentPID;
+R3=62;
+R4=5;
+call MOD_4;//device manager
+
+multipop(R1,R2,R3,R4);
+
+multipush(R1,R2,R3,R4);
+
+//disk free list
+R1=DISK_STORE;
+R2=currentPID;
+R3=61;
+R4=2;
+call MOD_4;//device manager
+
+multipop(R1,R2,R3,R4);
+
+reset;
+[SCHED_LOCK]=0;
+
+//Invoke Kill All function
+multipush(R1,R2,R3,R4);
+
+R1=KILL_ALL;
+R2=currentPID;
+call MOD_1;//Process manager
+
+multipop(R1,R2,R3,R4);
+
+R1 = RELEASE_LOCK;
+R2 = KERN_LOCK;
+call MOD_8;
+
+breakpoint;
+halt;

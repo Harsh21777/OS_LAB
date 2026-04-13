@@ -1,0 +1,122 @@
+
+alias currentPID R8;
+currentPID=[SYSTEM_STATUS_TABLE+CORE*5+1];
+//saving userStack and setting kernelStack
+alias userSP R1;
+userSP=SP;
+
+[PROCESS_TABLE+currentPID*16+13]=SP;
+SP=[PROCESS_TABLE+currentPID*16+11]*512-1;
+
+multipush(R1,R8);
+R1 = ACQUIRE_KERN_LOCK;
+call MOD_8;//access control
+multipop(R1,R8);
+
+alias sysCallNo R2;
+sysCallNo=[([PTBR + 2*((userSP-5)/512)]*512)+((userSP-5)%512)];
+
+//semLock
+if(sysCallNo==INT_SEMLOCK) then
+    //change MODE flg
+    [PROCESS_TABLE+currentPID*16+9]=INT_SEMLOCK;
+
+    alias semId R3;
+    semId=[([PTBR + 2*((userSP-4)/512)]*512)+((userSP-4)%512)];
+
+    alias perProcResourceEntry R4;
+    perProcResourceEntry=[PROCESS_TABLE+currentPID*16+11]*512+496;
+
+    //semaphore descriptor invalid
+    if((semId<0)||(semId>7)||([perProcResourceEntry+(semId*2)]!=1)) then
+        [([PTBR + 2*((userSP-1)/512)]*512)+((userSP-1)%512)]=-1;
+        goto endOfCode;
+    endif;
+
+    alias semTableIdx R5;
+    semTableIdx=[perProcResourceEntry+(semId*2)+1];
+
+    while(([SEMAPHORE_TABLE+(semTableIdx*4)]!=-1)&&[SEMAPHORE_TABLE+(semTableIdx*4)]!=currentPID) do
+        [PROCESS_TABLE+(currentPID*16)+4]=WAIT_SEMAPHORE;
+        [PROCESS_TABLE+(currentPID*16)+5]=semTableIdx;
+
+
+
+        multipush(R1,R2,R3,R4,R5,R8);
+
+        R1 = RELEASE_LOCK;
+        R2 = KERN_LOCK;
+        call MOD_8;
+
+
+        call MOD_5;//scheduler 
+
+        R1 = ACQUIRE_KERN_LOCK;
+        call MOD_8;//access control
+
+        multipop(R1,R2,R3,R4,R5,R8);
+       
+    endwhile;
+
+    [SEMAPHORE_TABLE+(semTableIdx*4)]=currentPID;
+
+    [([PTBR + 2*((userSP-1)/512)]*512)+((userSP-1)%512)]=0;//success
+    goto endOfCode;
+endif;
+
+//semUnlock
+if(sysCallNo==INT_SEMUNLOCK) then 
+    //change MODE flg
+    [PROCESS_TABLE+currentPID*16+9]=INT_SEMUNLOCK;
+
+    alias semId R3;
+    semId=[([PTBR + 2*((userSP-4)/512)]*512)+((userSP-4)%512)];
+
+    alias perProcResourceEntry R4;
+    perProcResourceEntry=[PROCESS_TABLE+currentPID*16+11]*512+496;
+
+    //semaphore descriptor invalid
+    if((semId<0)||(semId>7)||([perProcResourceEntry+(semId*2)]!=1)) then
+        [([PTBR + 2*((userSP-1)/512)]*512)+((userSP-1)%512)]=-1;
+        goto endOfCode;
+    endif;
+
+    alias semTableIdx R5;
+    semTableIdx=[perProcResourceEntry+(semId*2)+1];
+
+    if([SEMAPHORE_TABLE+(semTableIdx*4)]!=-1) then
+        //not locked by current process
+        if([SEMAPHORE_TABLE+(semTableIdx*4)]!=currentPID) then
+            [([PTBR + 2*((userSP-1)/512)]*512)+((userSP-1)%512)]=-2;
+            goto endOfCode;
+        endif;
+
+        [SEMAPHORE_TABLE+(semTableIdx*4)]=-1;
+
+        alias iter R6;
+        iter=0;
+        while(iter<16) do
+            if(([PROCESS_TABLE+(iter*16)+4]==WAIT_SEMAPHORE)&&([PROCESS_TABLE+(iter*16)+5]==semTableIdx)) then
+                [PROCESS_TABLE+(iter*16)+4]=READY;
+            endif;
+            iter=iter+1;
+        endwhile;
+    endif;
+
+    [([PTBR + 2*((userSP-1)/512)]*512)+((userSP-1)%512)]=0;//success
+    goto endOfCode;
+
+endif;
+
+endOfCode:
+    multipush(R1,R8);
+    R1 = RELEASE_LOCK;
+    R2 = KERN_LOCK;
+    call MOD_8;
+    multipop(R1,R8);
+
+    [PROCESS_TABLE+currentPID*16+9]=0;
+    SP=userSP;
+    
+    breakpoint;
+    ireturn;
