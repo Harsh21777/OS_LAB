@@ -15,6 +15,7 @@ set -e
 ./spl nespl_progs/pager_module6.spl
 ./spl nespl_progs/primaryBoot_module.spl
 ./spl nespl_progs/accessControl_module8.spl
+./spl nespl_progs/accessControl_moduleB.spl
 
 ./spl nespl_progs/int_4.spl
 ./spl nespl_progs/int_5.spl

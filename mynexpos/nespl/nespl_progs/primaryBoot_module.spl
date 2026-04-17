@@ -308,15 +308,6 @@ while(iter<MAX_BUFFER) do
     iter=iter+1;
 endwhile;
 
-// Initialize user table entries 2-15 to -1
-iter=2;
-while(iter<MAX_USER_NUM) do
-    [USER_TABLE+iter*2]=-1;
-    [USER_TABLE+iter*2+1]=-1;
-    iter=iter+1;
-endwhile;
-
-
 iter=2;
 while(iter<15) do
     [PROCESS_TABLE+iter*16+4]=TERMINATED;

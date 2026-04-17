@@ -13,7 +13,7 @@ flagsSchedLock = ACCESS_LOCK_TABLE + 5;
 //acquire kern lock
 if (functionNumber ==ACQUIRE_KERN_LOCK ) then
     if (CORE == SECONDARY_CORE) then
-        if ([SYSTEM_STATUS_TABLE + 5] == 1 || [SYSTEM_STATUS_TABLE + 7] == 1) then
+        if ([SYSTEM_STATUS_TABLE + 5] != 0 || [SYSTEM_STATUS_TABLE + 7] == 1) then
             [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 6]*16 + 4] = READY;
 
             call SCHEDULER;
